@@ -16,15 +16,34 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(pacman) # package manager, elegant way to load packages
 p_load(haven, #import spss data
-       tidyverse)
+       tidyverse,
+       naniar, #replace values with missing
+       ) 
 ```
 
 ## Dataset
 
+Data was saved in SPSS save file, imported to R and wrangling was done
+
+1. select related variables
+2. replace NA in variable for dateofremoval, for those with catheter not removed
+
+
 ```{r}
-pdcds <- read_sav("PDC Survival - Saifullah 290819.sav")
-pdcds <- pdcds %>% mutate_if(is.labelled, ~(as_factor(.))) %>% arrange(DataID)
-pdcds
+pdcds0 <- read_sav("PDC Survival - Saifullah 290819.sav")
+pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% print()
+```
+
+
+```{r}
+pdcds1 <- pdcds0 %>%
+  mutate_if(is.labelled, ~(as_factor(.))) %>%
+  arrange(DataID) %>% 
+  select(GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, Comorbidities, ComorbidYesNo, CMDM, CMHPT, CMIHD, CxCode, TypeofComplication, CxEarlyLate14Code, CxEarlyLate14TypeCode, CxEarlyLate30Code, CxEarly30YesNo, CxLate30YesNo, CxEarlyLate30TypeCode) %>% 
+  mutate(Dateofremoval2 = as.character(Dateofremoval)) %>% 
+  replace_with_na(replace = list(Dateofremoval2 = "2173-10-13")) %>%
+  mutate(Dateofremoval = as.Date(Dateofremoval2))
+pdcds1
 ```
 
 
