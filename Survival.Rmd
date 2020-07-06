@@ -17,8 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(pacman) # package manager, elegant way to load packages
 p_load(haven, #import spss data
        tidyverse,
-       naniar, #replace values with missing
-       ) 
+       naniar) #replace values with missing
+
 ```
 
 ## Dataset
@@ -39,10 +39,10 @@ pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% print()
 pdcds1 <- pdcds0 %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
   arrange(DataID) %>% 
-  select(GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, Comorbidities, ComorbidYesNo, CMDM, CMHPT, CMIHD, CxCode, TypeofComplication, CxEarlyLate14Code, CxEarlyLate14TypeCode, CxEarlyLate30Code, CxEarly30YesNo, CxLate30YesNo, CxEarlyLate30TypeCode) %>% 
   mutate(Dateofremoval2 = as.character(Dateofremoval)) %>% 
   replace_with_na(replace = list(Dateofremoval2 = "2173-10-13")) %>%
-  mutate(Dateofremoval = as.Date(Dateofremoval2))
+  mutate(Dateofremoval = as.Date(Dateofremoval2)) %>% 
+  select(GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, Comorbidities, ComorbidYesNo, CMDM, CMHPT, CMIHD, CxCode, TypeofComplication, CxEarlyLate14Code, CxEarlyLate14TypeCode, CxEarlyLate30Code, CxEarly30YesNo, CxLate30YesNo, CxEarlyLate30TypeCode, ExitSiteIfxCode) 
 pdcds1
 ```
 
