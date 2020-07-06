@@ -1,0 +1,33 @@
+---
+title: "Assignment - Survival"
+author: "Mohd Azmi"
+date: "06/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(haven, #import spss data
+       tidyverse)
+```
+
+## Dataset
+
+```{r}
+pdcds <- read_sav("PDC Survival - Saifullah 290819.sav")
+pdcds <- pdcds %>% mutate_if(is.labelled, ~(as_factor(.))) %>% arrange(DataID)
+pdcds
+```
+
+
+# Analysis
+
+## Data exploration
