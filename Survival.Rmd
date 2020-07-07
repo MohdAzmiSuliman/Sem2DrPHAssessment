@@ -18,8 +18,10 @@ library(pacman) # package manager, elegant way to load packages
 p_load(haven, #import spss data
        tidyverse,
        naniar, #replace values with missing
-       lubridate #date manipulation
-       )  
+       lubridate, #date manipulation
+       summarytools, #data exploration
+       DT, #create beautiful table
+       survival)  
        
 ```
 
@@ -28,30 +30,39 @@ p_load(haven, #import spss data
 Data was saved in SPSS save file, imported to R and wrangling was done
 
 1. select related variables
-2. replace NA in variable for dateofremoval, for those with catheter not removed
+2. replace NA for those without recorded date for complication and removal of catheter
+3. replace 365 days for duration with no complication nor removal of catheter (as the patient was follow up for maximum 1 year duration)
 
 
 ```{r}
-pdcds0 <- read_sav("PDC Survival - Saifullah 290819.sav")
-pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% arrange(DataID) %>% print()
+pdcds0 <- read_sav("pdcsurvival.sav")
+pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% print() #change to datatable() before knit
 ```
 
 
-DataID, GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, diffday, Comorbidities, ComorbidYesNo, CMDM, CMHPT, CMIHD, CxCode, TypeofComplication, CxEarlyLate14Code, CxEarlyLate14TypeCode, CxEarlyLate30Code, CxEarly30YesNo, CxLate30YesNo, CxEarlyLate30TypeCode, ExitSiteIfxCode
 
 ```{r}
 pdcds1 <- pdcds0 %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
-  arrange(DataID) %>% 
-  mutate(Dateofremoval2 = as.character(Dateofremoval)) %>% 
-  replace_with_na(replace = list(Dateofremoval2 = "2173-10-13",
-                                 CxDayCode = ">365 days or no complication")) %>%
-  mutate(Dateofremoval = as.Date(Dateofremoval2),
-         CxDayCode = as.double(CxDayCode)) %>%
-  mutate(diffday = as.double(difftime(ymd(Dateofremoval), ymd(Dateofplacement), units = "days"))) %>% 
-  select(DataID, GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, diffday, ComorbidYesNo, CMDM, CMHPT, CMIHD,CatheterStatusCode, RemovalReasonCode, CxDayCode) 
+  mutate(RemovalDate2 = as.character(RemovalDate),
+         CxDate2 = as.character(CxDate)) %>% 
+  replace_with_na(replace = list(RemovalDate2 = "2173-10-13",
+                                 CxDate2 = "2173-10-13",
+                                 RemovalReason = "N/A - Not removed")) %>%
+  mutate(RemovalDate = as.Date(RemovalDate2),
+         CxDate = as.Date(CxDate2)) %>%
+  mutate(RemovalDur = as.double(difftime(ymd(RemovalDate), ymd(PlaceDate), units = "days")),
+         CxDur = as.double(difftime(ymd(CxDate), ymd(PlaceDate), units = "days"))) %>%
+  replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
+  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur)
+
 pdcds1
+#datatable(pdcds1)
+
 ```
+
+
+
 
 
 # Analysis
@@ -61,13 +72,44 @@ pdcds1
 No of complication developed, by number of days
 
 ```{r}
-cxdaysdist <- pdcds1 %>% group_by(CxDayCode) %>% count()
-cxdaysdist
-cxdaysdist2 <- cxdaysdist %>% group_by(n) %>% count() %>% print()
+pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur)
+removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
+ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0,5), name = "No. of Patient")
 ```
-number of patient developed complication perday for every day from day 1 post catheter ranging from one to three patient. however after 51 days, no more complication were reported
+
+No of catheter remove developed, by number of days
+
+```{r}
+pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur)
+cxdurdt <- pdcds1 %>% group_by(CxDur) %>% count(CxDur)
+ggplot(cxdurdt, aes(x=CxDur, y=n)) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0,5), name = "No. of Patient")
+```
 
 ```{r}
 
+```
+
+## Survival Analysis
+
+Both time-to-event for complication and removal of catheter were analysed using survival analysis
+- ethnicity and cm status not included
+
+```{r}
+cxsurvexpmod <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "exponential")
+summary(cxsurvexpmod)
+```
+
+
+
+# SessionInfo
+
+```{r}
+sessionInfo()
 ```
 
