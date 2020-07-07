@@ -44,10 +44,12 @@ pdcds1 <- pdcds0 %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
   arrange(DataID) %>% 
   mutate(Dateofremoval2 = as.character(Dateofremoval)) %>% 
-  replace_with_na(replace = list(Dateofremoval2 = "2173-10-13")) %>%
-  mutate(Dateofremoval = as.Date(Dateofremoval2)) %>%
+  replace_with_na(replace = list(Dateofremoval2 = "2173-10-13",
+                                 CxDayCode = ">365 days or no complication")) %>%
+  mutate(Dateofremoval = as.Date(Dateofremoval2),
+         CxDayCode = as.double(CxDayCode)) %>%
   mutate(diffday = as.double(difftime(ymd(Dateofremoval), ymd(Dateofplacement), units = "days"))) %>% 
-  select(DataID, GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, diffday, ComorbidYesNo, CMDM, CMHPT, CMIHD,CatheterStatusCode, RemovalReasonCode) 
+  select(DataID, GenderCode, RaceCode, Age, MethodCode, Dateofplacement, Dateofremoval, diffday, ComorbidYesNo, CMDM, CMHPT, CMIHD,CatheterStatusCode, RemovalReasonCode, CxDayCode) 
 pdcds1
 ```
 
@@ -55,3 +57,17 @@ pdcds1
 # Analysis
 
 ## Data exploration
+
+No of complication developed, by number of days
+
+```{r}
+cxdaysdist <- pdcds1 %>% group_by(CxDayCode) %>% count()
+cxdaysdist
+cxdaysdist2 <- cxdaysdist %>% group_by(n) %>% count() %>% print()
+```
+number of patient developed complication perday for every day from day 1 post catheter ranging from one to three patient. however after 51 days, no more complication were reported
+
+```{r}
+
+```
+
