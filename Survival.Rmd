@@ -2,11 +2,19 @@
 title: "Assignment - Survival"
 author: "Mohd Azmi"
 date: "06/07/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+      collapsed: no
+    number_sections: true
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+summarytools::st_options(freq.cumul = F, freq.report.nas = F, style = "simple")
 ```
 
 # Environment
@@ -22,29 +30,32 @@ p_load(haven, #import spss data
        summarytools, #data exploration
        DT, #create beautiful table
        survival,
-       broom)  
+       broom,
+       knitr)  
        
 ```
 
 ## Dataset
 
-Data was saved in SPSS save file, imported to R and wrangling was done
-
-1. select related variables
-2. replace NA for those without recorded date for complication and removal of catheter
-3. replace 365 days for duration with no complication nor removal of catheter (as the patient was follow up for maximum 1 year duration)
-
+Data was saved in SPSS save file, imported to R
 
 ```{r}
 pdcds0 <- read_sav("pdcsurvivalalter.sav")
 pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% print() #change to datatable() before knit
 ```
 
+data wrangling was done
+
+1. select related variables
+2. replace NA for those without recorded date for complication and removal of catheter
+3. replace 365 days for duration with no complication nor removal of catheter (as the patient was follow up for maximum 1 year duration)
+
 
 
 ```{r}
 pdcds1 <- pdcds0 %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
+  arrange(DataID) %>% 
   mutate(RemovalDate2 = as.character(RemovalDate),
          CxDate2 = as.character(CxDate)) %>% 
   replace_with_na(replace = list(RemovalDate2 = "2173-10-13",
@@ -57,22 +68,16 @@ pdcds1 <- pdcds0 %>%
   replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
   select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur)
 
-pdcds1
-#datatable(pdcds1)
-
+pdcds1 %>% select(-DataID) %>% datatable()
 ```
-
-
-
-
 
 # Analysis
 
 ## Data exploration
 
 ```{r}
-freq(pdcds1)
-ctable(pdcds1$CatheterStatus, pdcds1$Method)
+pdcds1 %>% select(Age) %>% summary() %>% kable()
+pdcds1 %>% select_if(is.factor) %>% summary() %>% kable()
 ```
 
 
