@@ -21,7 +21,8 @@ p_load(haven, #import spss data
        lubridate, #date manipulation
        summarytools, #data exploration
        DT, #create beautiful table
-       survival)  
+       survival,
+       broom)  
        
 ```
 
@@ -35,7 +36,7 @@ Data was saved in SPSS save file, imported to R and wrangling was done
 
 
 ```{r}
-pdcds0 <- read_sav("pdcsurvival.sav")
+pdcds0 <- read_sav("pdcsurvivalalter.sav")
 pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% print() #change to datatable() before knit
 ```
 
@@ -69,6 +70,12 @@ pdcds1
 
 ## Data exploration
 
+```{r}
+freq(pdcds1)
+ctable(pdcds1$CatheterStatus, pdcds1$Method)
+```
+
+
 No of complication developed, by number of days
 
 ```{r}
@@ -97,12 +104,37 @@ ggplot(cxdurdt, aes(x=CxDur, y=n)) +
 
 ## Survival Analysis
 
+### Univariable
+
+```{r}
+cxsurvexpmod_gender <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender, data = pdcds1, dist = "exponential")
+summary(cxsurvexpmod_gender)
+```
+
+```{r}
+cxsurvexpmod_method <- survreg(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1, dist = "exponential")
+summary(cxsurvexpmod_method)
+```
+
+
 Both time-to-event for complication and removal of catheter were analysed using survival analysis
 - ethnicity and cm status not included
+
+
 
 ```{r}
 cxsurvexpmod <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "exponential")
 summary(cxsurvexpmod)
+```
+a more elegant way to present it
+
+```{r}
+tidy(cxsurvexpmod) %>% 
+  mutate(TR = exp(estimate),
+         llci = exp(conf.low),
+         ulci = exp(conf.high),
+         HR = exp(-estimate)) %>% 
+  select(term, estimate, TR, llci, ulci, p.value, HR)
 ```
 
 
