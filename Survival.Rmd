@@ -79,6 +79,9 @@ pdcds1 %>% select(Age) %>% summary() %>% kable()
 pdcds1 %>% select_if(is.factor) %>% summary() %>% kable()
 ```
 
+## Sociodemographic
+
+
 
 No of complication developed, by number of days
 
