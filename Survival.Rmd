@@ -4,12 +4,11 @@ author: "Mohd Azmi"
 date: "06/07/2020"
 output: 
   html_document:
-    toc: true
-    toc_depth: 3
-    toc_float: true
-      collapsed: no
-    number_sections: true
     code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -34,13 +33,13 @@ p_load(haven, #import spss data
        
 ```
 
-## Dataset
+## Dataset & Data Exploration
 
 Data was saved in SPSS save file, imported to R
 
 ```{r}
 pdcds0 <- read_sav("pdcsurvivalalter.sav")
-pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% print() #change to datatable() before knit
+pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% datatable(fillContainer = T)
 ```
 
 data wrangling was done
@@ -67,26 +66,35 @@ pdcds1 <- pdcds0 %>%
   replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
   select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur)
 
-pdcds1 %>% select(-DataID) %>% datatable()
+pdcds1 %>% select(-DataID) %>% datatable(fillContainer = T)
+```
+
+Simple data exploration to ensure necessary data wrangling was done.
+
+```{r}
+pdcds1 %>% select(Age) %>% summary() %>% kable()
+pdcds1 %>% select_if(is.factor) %>% select(-CxTypeCode) %>% summary() %>% kable()
+pdcds1 %>% select(CxTypeCode) %>% summary() %>% kable()
 ```
 
 # Analysis
 
-## Data exploration
+## Descriptive
+
+### Sociodemographic
+
+
+### Outcome
+
+Among all the participants, there are 105 samples that developed catheter related, ranging from the earliest 13 days post catheterization, and longest reported after 339 days post catheterization.
 
 ```{r}
-pdcds1 %>% select(Age) %>% summary() %>% kable()
-pdcds1 %>% select_if(is.factor) %>% summary() %>% kable()
+pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max", "n.valid"))
 ```
 
-## Sociodemographic
 
-
-
-No of complication developed, by number of days
 
 ```{r}
-pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur)
 removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
 ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
   geom_point() + geom_line() +
@@ -97,7 +105,6 @@ ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
 No of catheter remove developed, by number of days
 
 ```{r}
-pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur)
 cxdurdt <- pdcds1 %>% group_by(CxDur) %>% count(CxDur)
 ggplot(cxdurdt, aes(x=CxDur, y=n)) +
   geom_point() + geom_line() +
@@ -146,7 +153,14 @@ tidy(cxsurvexpmod) %>%
 
 
 
-# SessionInfo
+# Additional Info
+
+```{r}
+
+```
+
+
+
 
 ```{r}
 sessionInfo()

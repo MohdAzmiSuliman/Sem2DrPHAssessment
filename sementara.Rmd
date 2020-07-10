@@ -1,0 +1,33 @@
+---
+title: "Untitled"
+author: "Mohd Azmi"
+date: "10/07/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+```
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(haven, #import spss data
+       tidyverse,
+       DT, #create beautiful table
+       knitr)  
+       
+```
+
+## Dataset
+
+Data was saved in SPSS save file, imported to R
+
+```{r}
+pdcds0 <- read_sav("pdcsurvivalalter.sav")
+pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% datatable(width = 1280, height = 720)
+```
