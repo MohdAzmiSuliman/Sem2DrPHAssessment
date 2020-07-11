@@ -71,7 +71,6 @@ data wrangling was done
 3. replace 365 days for duration with no complication nor removal of catheter (as the patient was follow up for maximum 1 year duration)
 
 
-
 ```{r}
 pdcds1 <- pdcds0 %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
@@ -93,8 +92,8 @@ pdcds1 %>% select(-DataID) %>% datatable(fillContainer = T)
 Simple data exploration to ensure necessary data wrangling was done.
 
 ```{r}
-pdcds1 %>% select(is.factor) %>% summary() %>% kable()
-pdcds1 %>% select(-is.factor) %>% summary() %>% kable()
+pdcds1 %>% select(where(is.factor)) %>% summary() %>% kable()
+pdcds1 %>% select(-where(is.factor)) %>% summary() %>% kable()
 ```
 
 # Analysis & Result
@@ -102,6 +101,8 @@ pdcds1 %>% select(-is.factor) %>% summary() %>% kable()
 ## Descriptive
 
 ### Sociodemographic
+
+Descriptive analysis was done on sociodemographic data, was shown below. 
 
 ```{r, results='asis'}
 demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
@@ -123,21 +124,33 @@ print(summary_table(pdcds1, demo_sum), rtitle = "Variables", cnames = c("Mean (S
 
 ### Catheterization and Outcomes
 
-out of all the samples, most of them underwent percutaneous method
+out of all the samples, more than half of them underwent percutaneous method, with half of them develop complication (mean complication time = 107 days) and eventually 46% of all catheter require removal (mean removal time = 117 days).
 
 ```{r, results='asis'}
 pdcds1_withna <- pdcds1 %>%
-  replace_with_na(replace = list(RemovalDur = "365",
-                                 CxDur = "365"))
-method_sum <- list("Method" = list("Percutaneous Method" = ~ n_perc0(.data$Method == "Percutaneous Method"),
-                                 "Peritoneoscopy Method" = ~ n_perc0(.data$Method != "Percutaneous Method")),
-                   "Complication" = list("Yes" = ~ n_perc0(.data$Compx == "Yes"),
-                                         "No" = ~ n_perc0(.data$Compx != "Yes")),
-                   "Mean Complication Time" = list("Mean (SD)" = ~ mean_sd(.data$CxDur, na_rm = T, show_n = "never", denote_sd = "paren")),
-                   "Removal" = list("Yes" = ~ n_perc0(.data$CatheterStatus != "censor"),
-                                    "No" = ~ n_perc0(.data$CatheterStatus == "censor")),
-                   "Mean Removal Time" = list("Mean (SD)" = ~ mean_sd(.data$RemovalDur, na_rm = T, show_n = "never", denote_sd = "paren")))
-print(summary_table(pdcds1_withna, method_sum), rtitle = "Variables", cnames = c("Mean (SD), n (%)"))
+  replace_with_na(replace = list(RemovalDur = "365", CxDur = "365",
+                                 CxTypeCode = "No Complication", RemovalReason = "N/A - Not removed"))
+method_sum <- list("Method" = list("Percutaneous Method" = ~ n_perc0(.data$Method == "Percutaneous Method", digits = 1),
+                                 "Peritoneoscopy Method" = ~ n_perc0(.data$Method != "Percutaneous Method", digits = 1)),
+                   "Complication" = list("Yes" = ~ n_perc0(.data$Compx == "Yes", digits = 1),
+                                         "No" = ~ n_perc0(.data$Compx != "Yes", digits = 1)),
+                   "Mean Complication Time" = list("Mean (SD)" = ~ mean_sd(.data$CxDur, na_rm = T, show_n = "never",
+                                                                           denote_sd = "paren", digits = 2)),
+                   "Reason for Complication" = list("Infection Complication" = ~ n_perc0(.data$CxTypeCode == "Infection Complication",
+                                                                                         na_rm = T, digits = 1),
+                                                    "Mechanical Complication" = ~ n_perc0(.data$CxTypeCode == "Mechanical Complication",
+                                                                                          na_rm = T, digits = 1),
+                                                    "Both" = ~ n_perc0(.data$CxTypeCode == "Both",
+                                                                       na_rm = T, digits = 1)),
+                   "Removal" = list("Yes" = ~ n_perc0(.data$CatheterStatus != "censor", digits = 1),
+                                    "No" = ~ n_perc0(.data$CatheterStatus == "censor", digits = 1)),
+                   "Mean Removal Time" = list("Mean (SD)" = ~ mean_sd(.data$RemovalDur, na_rm = T, show_n = "never",
+                                                                      denote_sd = "paren", digits = 2)),
+                   "Reason for Removal" = list("Peritonitis" = ~ n_perc0(.data$RemovalReason == "Peritonitis", na_rm = T, digits = 1),
+                                               "Exit Site Infection" = ~ n_perc0(.data$RemovalReason == "Exit Site Infection",
+                                                                                 na_rm = T, digits = 1),
+                                               "Malfunction" = ~ n_perc0(.data$RemovalReason == "Malfunction", na_rm = T, digits = 1)))
+print(summary_table(pdcds1_withna, method_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
 ```
 
 Among all the participants, there are 118 samples that developed catheter related complication, ranging from the earliest 13 days post catheterization, and longest reported after 317 days post catheterization.
@@ -146,21 +159,30 @@ Among all the participants, there are 118 samples that developed catheter relate
 pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur, stats = c("min", "max"))
 ```
 
-there are 1 to 5 samples developed complication per day.
+there are 1 to 5 samples developed complication per day. 
 
 ```{r}
 removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
 ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
   geom_point() + geom_line() +
-  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
-  scale_y_continuous(limits = c(0,5), name = "No. of Patient")
+  scale_x_continuous(limits = c(0,364), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0,6), expand = c(0,0), name = "No. of Patient") +
+  theme_bw() + ggtitle("Line of for number of complication for each duration of catheterization")
 
 ggplot(removaldurdt, aes(x=RemovalDur, y=cumsum(n))) +
   geom_point() + geom_line() +
-  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
-  scale_y_continuous(limits = c(0, 110), name = "No. of Patient (Cumulative)")
+  scale_x_continuous(limits = c(0,364), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0, 110), expand = c(0,0), name = "No. of Patient (Cumulative)") +
+  theme_bw() + ggtitle("Cummulative Frequency Plot for number of complication for each duration of catheterization")
+```
+
+Among all the participants, there were 105 catheter that require 
+
+```{r}
+pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max"))
 
 ```
+
 
 No of catheter remove developed, by number of days
 
