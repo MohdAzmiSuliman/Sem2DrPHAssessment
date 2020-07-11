@@ -159,46 +159,90 @@ Among all the participants, there are 118 samples that developed catheter relate
 pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur, stats = c("min", "max"))
 ```
 
-there are 1 to 5 samples developed complication per day. 
-
-```{r}
-removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
-ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
-  geom_point() + geom_line() +
-  scale_x_continuous(limits = c(0,364), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Complication (day)") +
-  scale_y_continuous(limits = c(0,6), expand = c(0,0), name = "No. of Patient") +
-  theme_bw() + ggtitle("Line of for number of complication for each duration of catheterization")
-
-ggplot(removaldurdt, aes(x=RemovalDur, y=cumsum(n))) +
-  geom_point() + geom_line() +
-  scale_x_continuous(limits = c(0,364), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Complication (day)") +
-  scale_y_continuous(limits = c(0, 110), expand = c(0,0), name = "No. of Patient (Cumulative)") +
-  theme_bw() + ggtitle("Cummulative Frequency Plot for number of complication for each duration of catheterization")
-```
-
-Among all the participants, there were 105 catheter that require 
-
-```{r}
-pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max"))
-
-```
-
-
-No of catheter remove developed, by number of days
+there are 1 to 7 samples developed complication per day. 
 
 ```{r}
 cxdurdt <- pdcds1 %>% group_by(CxDur) %>% count(CxDur)
+
 ggplot(cxdurdt, aes(x=CxDur, y=n)) +
   geom_point() + geom_line() +
-  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
-  scale_y_continuous(limits = c(0,5), name = "No. of Patient")
+  scale_x_continuous(limits = c(0,337.5), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Catheterization (day)") +
+  scale_y_continuous(limits = c(0,8), expand = c(0,0), name = "No. of Patient develop Complication") +
+  theme_bw() + ggtitle("Line plot for number of complication for each duration of catheterization")
+
+ggplot(cxdurdt, aes(x=CxDur, y=cumsum(n))) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,337.5), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Catheterization (day)") +
+  scale_y_continuous(limits = c(0, 130), expand = c(0,0), name = "No. of Patient (Cumulative) develop Complication") +
+  theme_bw() + ggtitle("Cummulative Frequency Plot for number of \ncomplication for each duration of catheterization")
 ```
+
+Among all the participants, there were 105 catheter that require removal, rangin from as early as 13 days post catheterization until 339 days post catheterization.
 
 ```{r}
+pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max"))
+```
+
+there are 1 to 5 catheter removed per day
+
+```{r}
+removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
+
+ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,364), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Catheterization (day)") +
+  scale_y_continuous(limits = c(0,6), expand = c(0,0), name = "No. of Catheter Removed") +
+  theme_bw() + ggtitle("Line plot for number of removal for each duration of catheterization")
+
+ggplot(removaldurdt, aes(x=RemovalDur, y=cumsum(n))) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,350), breaks = seq(0,350,25), expand = c(0,0), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0, 110), expand = c(0,0), name = "No. of Patient (Cumulative) \nrequire Catheter Removal") +
+  theme_bw() + ggtitle("Cummulative Frequency Plot for number of \nCatheter Removed for each duration of catheterization")
 
 ```
 
+
 ## Survival Analysis
+
+### Catheter Survival (Descriptive)
+
+Time-to-event for complication and catheter removal were describe using kaplan-meier analysis.
+
+Out of 132 patients on percutaneous method, 75 develop complication, with median time-to-event for complication was 220 days.
+Meanwhile, out of 98 patients on peritonesoucopy method, 43 develop complication, with median time-to-event for complication was beyond 365 days.
+
+```{r}
+compx_km <- survfit(Surv(time = CxDur, Compx == "Yes") ~ Method,
+                      data = pdcds1,
+                      type = "kaplan-meier")
+compx_km
+```
+
+Probability of survival (not develop complication) for percutaneous method for 6-months was 54.5% (95% CI = 46.7, 63.7) while peritonescopy was 62.2% (95% CI = 53.4, 72.6). The probability of survival (not develop complication) for 30-days, 3-months and 1-year was shown below.
+
+```{r}
+summary(compx_km, times = c(30, 90, 180, 365))
+```
+
+Out of 132 patients on percutaneous method, 70 require removal, with median time-to-event for removal was 276 days.
+Meanwhile, out of 98 patients on peritoneoscopy method, 35 require removal, with median time-to-event for removal was beyond 365 days.
+
+```{r}
+removal_km <- survfit(Surv(time = RemovalDur, CatheterStatus == "Catheter Removed") ~ Method,
+                      data = pdcds1,
+                      type = "kaplan-meier")
+removal_km
+```
+
+Probability of survival (not removed) for percutaneous method for 6-months was 59.8% (95% CI = 52.0, 68.8) while peritonescopy was 71.4% (95% CI = 63.0, 81.0). The probability of survival (not removed) for 30-days, 3-months and 1-year was shown below.
+
+```{r}
+summary(removal_km, times = c(30, 90, 180, 365))
+```
+
+## 
+
 
 Data will be separate into two dataset, train and test dataset
 
