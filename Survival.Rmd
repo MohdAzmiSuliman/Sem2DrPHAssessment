@@ -12,7 +12,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F)
+knitr::opts_chunk$set(echo = TRUE, warning = F, results = c("asis"))
 ```
 
 # Environment
@@ -29,7 +29,8 @@ p_load(haven, #import spss data
        DT, #create beautiful table
        survival,
        broom,
-       knitr)  
+       knitr,
+       qwraps2)  
        
 ```
 
@@ -39,7 +40,11 @@ Data was saved in SPSS save file, imported to R
 
 ```{r}
 pdcds0 <- read_sav("pdcsurvivalalter.sav")
-pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% datatable(fillContainer = T)
+pdcds0 %>% 
+  arrange(DataID) %>%
+  mutate_if(is.labelled, ~(as_factor(.))) %>%
+  select(-c(DataID, Comorbidities)) %>%
+  datatable(fillContainer = T)
 ```
 
 data wrangling was done
@@ -57,14 +62,13 @@ pdcds1 <- pdcds0 %>%
   mutate(RemovalDate2 = as.character(RemovalDate),
          CxDate2 = as.character(CxDate)) %>% 
   replace_with_na(replace = list(RemovalDate2 = "2173-10-13",
-                                 CxDate2 = "2173-10-13",
-                                 RemovalReason = "N/A - Not removed")) %>%
+                                 CxDate2 = "2173-10-13")) %>%
   mutate(RemovalDate = as.Date(RemovalDate2),
          CxDate = as.Date(CxDate2)) %>%
   mutate(RemovalDur = as.double(difftime(ymd(RemovalDate), ymd(PlaceDate), units = "days")),
          CxDur = as.double(difftime(ymd(CxDate), ymd(PlaceDate), units = "days"))) %>%
   replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
-  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur)
+  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur, RemovalReason)
 
 pdcds1 %>% select(-DataID) %>% datatable(fillContainer = T)
 ```
@@ -73,8 +77,8 @@ Simple data exploration to ensure necessary data wrangling was done.
 
 ```{r}
 pdcds1 %>% select(Age) %>% summary() %>% kable()
-pdcds1 %>% select_if(is.factor) %>% select(-CxTypeCode) %>% summary() %>% kable()
-pdcds1 %>% select(CxTypeCode) %>% summary() %>% kable()
+pdcds1 %>% select_if(is.factor) %>% select(-c(CxTypeCode, RemovalReason)) %>% summary() %>% kable()
+pdcds1 %>% select(CxTypeCode, RemovalReason) %>% summary() %>% kable()
 ```
 
 # Analysis
@@ -82,6 +86,15 @@ pdcds1 %>% select(CxTypeCode) %>% summary() %>% kable()
 ## Descriptive
 
 ### Sociodemographic
+
+```{r}
+demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
+                                 "Female" = ~ n_perc0(.data$Gender == "Female")),
+                 "Age (years)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
+                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$Race == "Malay"),
+                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")))
+print(summary_table(pdcds1, demo_sum), rtitle = "Demographic Summaries", cnames = c("Mean (SD) / n (%)"))
+```
 
 
 ### Outcome

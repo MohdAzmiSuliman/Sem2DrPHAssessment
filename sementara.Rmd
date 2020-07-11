@@ -7,7 +7,9 @@ output: html_document
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F)
+knitr::opts_chunk$set(echo = TRUE, warning = F, results = c("asis", "hold"))
+options(qwraps2_markup = "markdown")
+
 ```
 
 # Environment
@@ -19,7 +21,10 @@ library(pacman) # package manager, elegant way to load packages
 p_load(haven, #import spss data
        tidyverse,
        DT, #create beautiful table
-       knitr)  
+       knitr,
+       qwraps2,
+       naniar,
+       lubridate)
        
 ```
 
@@ -29,5 +34,28 @@ Data was saved in SPSS save file, imported to R
 
 ```{r}
 pdcds0 <- read_sav("pdcsurvivalalter.sav")
-pdcds0 %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-c(DataID, Comorbidities)) %>% datatable(width = 1280, height = 720)
 ```
+
+```{r}
+pdcds1 <- pdcds0 %>%
+  mutate_if(is.labelled, ~(as_factor(.))) %>%
+  arrange(DataID) %>% 
+  mutate(RemovalDate2 = as.character(RemovalDate),
+         CxDate2 = as.character(CxDate)) %>% 
+  replace_with_na(replace = list(RemovalDate2 = "2173-10-13",
+                                 CxDate2 = "2173-10-13")) %>%
+  mutate(RemovalDate = as.Date(RemovalDate2),
+         CxDate = as.Date(CxDate2)) %>%
+  mutate(RemovalDur = as.double(difftime(ymd(RemovalDate), ymd(PlaceDate), units = "days")),
+         CxDur = as.double(difftime(ymd(CxDate), ymd(PlaceDate), units = "days"))) %>%
+  replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
+  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur, RemovalReason)
+
+demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
+                                 "Female" = ~ n_perc0(.data$Gender == "Female")),
+                 "Age (years)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
+                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$Race == "Malay"),
+                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")))
+summary_table(pdcds1, demo_sum)
+```
+
