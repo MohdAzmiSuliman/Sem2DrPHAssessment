@@ -12,8 +12,24 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = F, results = c("asis"))
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
 ```
+
+# Motivation
+
+Peritoneal dialysis (PD) is one of renal replacement therapy available for end stage renal failure. However PD require tenckhoff catheterization to access to peritoneal fluid, which have their own risks. There are several technique for tenckhoff catheter placement. In HRPZ II, commonly tenckhoff catheterization was done with either percutaneous or peritonesocopic method.
+
+There are several complications related to tenckhoff catheterization, which generally categorized into infection or mechanical complication. In this analysis, there are several objectives that the researcher would like to achieve
+
+1. the time-to-complication and time-to-removal of the  tenckhoff catheter.
+2. compare between percutaneous and peritonescopic method
+3. find factors that may affect the time-to-complication and time-to-removal of the  tenckhoff catheter.
+
+Note: 
+
+1. while this research and dataset were based on ongoing research by one of MMed student, the dataset was altered.
+2. hence any findings and interpretation from this analysis does not reflect the real outcome of patients in HRPZ and SHOULD NOT be use other than this assignment.
 
 # Environment
 
@@ -26,11 +42,12 @@ p_load(haven, #import spss data
        naniar, #replace values with missing
        lubridate, #date manipulation
        summarytools, #data exploration
-       DT, #create beautiful table
-       survival,
-       broom,
-       knitr,
-       qwraps2)  
+       DT, #create beautiful data table
+       survival, #survival analysis
+       broom, #tidy function
+       knitr, #knit rmd
+       qwraps2, #create beautiful descriptive statistic
+       SurvRegCensCov)  
        
 ```
 
@@ -76,36 +93,60 @@ pdcds1 %>% select(-DataID) %>% datatable(fillContainer = T)
 Simple data exploration to ensure necessary data wrangling was done.
 
 ```{r}
-pdcds1 %>% select(Age) %>% summary() %>% kable()
-pdcds1 %>% select_if(is.factor) %>% select(-c(CxTypeCode, RemovalReason)) %>% summary() %>% kable()
-pdcds1 %>% select(CxTypeCode, RemovalReason) %>% summary() %>% kable()
+pdcds1 %>% select(is.factor) %>% summary() %>% kable()
+pdcds1 %>% select(-is.factor) %>% summary() %>% kable()
 ```
 
-# Analysis
+# Analysis & Result
 
 ## Descriptive
 
 ### Sociodemographic
 
-```{r}
+```{r, results='asis'}
 demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
                                  "Female" = ~ n_perc0(.data$Gender == "Female")),
                  "Age (years)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
                  "Ethnicity" = list("Malay" = ~ n_perc0(.data$Race == "Malay"),
-                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")))
-print(summary_table(pdcds1, demo_sum), rtitle = "Demographic Summaries", cnames = c("Mean (SD) / n (%)"))
+                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")),
+                 "comorbidities (status)" = list("Yes" = ~ n_perc0(.data$CM == "Yes"),
+                                               "No" = ~ n_perc0(.data$CM == "No")),
+                 "DM (status)" = list("Yes" = ~ n_perc0(.data$CMDM == "DM"),
+                                      "No" = ~ n_perc0(.data$CMDM == "No")),
+                 "Hypertension (status)" = list("Yes" = ~ n_perc0(.data$CMHPT == "HPT"),
+                                                "No" = ~ n_perc0(.data$CMHPT == "No")),
+                 "Ischaemic Heart Disease (status)" = list("Yes" = ~ n_perc0(.data$CMIHD == "IHD"),
+                                                           "No" = ~ n_perc0(.data$CMIHD == "No")))
+print(summary_table(pdcds1, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
 ```
 
 
-### Outcome
+### Catheterization and Outcomes
 
-Among all the participants, there are 105 samples that developed catheter related, ranging from the earliest 13 days post catheterization, and longest reported after 339 days post catheterization.
+out of all the samples, most of them underwent percutaneous method
 
-```{r}
-pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max", "n.valid"))
+```{r, results='asis'}
+pdcds1_withna <- pdcds1 %>%
+  replace_with_na(replace = list(RemovalDur = "365",
+                                 CxDur = "365"))
+method_sum <- list("Method" = list("Percutaneous Method" = ~ n_perc0(.data$Method == "Percutaneous Method"),
+                                 "Peritoneoscopy Method" = ~ n_perc0(.data$Method != "Percutaneous Method")),
+                   "Complication" = list("Yes" = ~ n_perc0(.data$Compx == "Yes"),
+                                         "No" = ~ n_perc0(.data$Compx != "Yes")),
+                   "Mean Complication Time" = list("Mean (SD)" = ~ mean_sd(.data$CxDur, na_rm = T, show_n = "never", denote_sd = "paren")),
+                   "Removal" = list("Yes" = ~ n_perc0(.data$CatheterStatus != "censor"),
+                                    "No" = ~ n_perc0(.data$CatheterStatus == "censor")),
+                   "Mean Removal Time" = list("Mean (SD)" = ~ mean_sd(.data$RemovalDur, na_rm = T, show_n = "never", denote_sd = "paren")))
+print(summary_table(pdcds1_withna, method_sum), rtitle = "Variables", cnames = c("Mean (SD), n (%)"))
 ```
 
+Among all the participants, there are 118 samples that developed catheter related complication, ranging from the earliest 13 days post catheterization, and longest reported after 317 days post catheterization.
 
+```{r, results='asis'}
+pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur, stats = c("min", "max"))
+```
+
+there are 1 to 5 samples developed complication per day.
 
 ```{r}
 removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
@@ -113,6 +154,12 @@ ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
   geom_point() + geom_line() +
   scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
   scale_y_continuous(limits = c(0,5), name = "No. of Patient")
+
+ggplot(removaldurdt, aes(x=RemovalDur, y=cumsum(n))) +
+  geom_point() + geom_line() +
+  scale_x_continuous(limits = c(0,364), name = "Duration of Complication (day)") +
+  scale_y_continuous(limits = c(0, 110), name = "No. of Patient (Cumulative)")
+
 ```
 
 No of catheter remove developed, by number of days
@@ -131,12 +178,27 @@ ggplot(cxdurdt, aes(x=CxDur, y=n)) +
 
 ## Survival Analysis
 
-### Univariable
+Data will be separate into two dataset, train and test dataset
 
 ```{r}
-cxsurvexpmod_gender <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender, data = pdcds1, dist = "exponential")
-summary(cxsurvexpmod_gender)
+randsel <- sort(sample(nrow(pdcds1),nrow(pdcds1)*.7))
+pdcds1_trd <- pdcds1[randsel,]
+pdcds1_ted <- pdcds1[-randsel,]
 ```
+
+As the distribution of the outcome was unknown, Survival Analysis with Weibull model was done.
+
+### Univariable
+
+
+```{r}
+cxsurvweimod_gender <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender, data = pdcds1_trd, dist = "weibull")
+summary(cxsurvweimod_gender)
+cxsurvweimod_gender_res <- ConvertWeibull(cxsurvweimod_gender, conf.level = 0.95)
+cxsurvweimod_gender_res
+```
+
+variable gender was not significant, with time ratio (TR) of female (as compare to male) to develop catheter complication was `r cxsurvweimod_gender_res$ETR` times faster. 
 
 ```{r}
 cxsurvexpmod_method <- survreg(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1, dist = "exponential")
@@ -150,8 +212,10 @@ Both time-to-event for complication and removal of catheter were analysed using 
 
 
 ```{r}
-cxsurvexpmod <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "exponential")
+cxsurvexpmod <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1_trd, dist = "exponential")
 summary(cxsurvexpmod)
+cxsurvexpmoda <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "exponential")
+summary(cxsurvexpmoda)
 ```
 a more elegant way to present it
 
