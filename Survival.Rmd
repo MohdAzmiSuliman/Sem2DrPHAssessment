@@ -211,7 +211,7 @@ ggplot(removaldurdt, aes(x=RemovalDur, y=cumsum(n))) +
 Time-to-event for complication and catheter removal were describe using kaplan-meier analysis.
 
 Out of 132 patients on percutaneous method, 75 develop complication, with median time-to-event for complication was 220 days.
-Meanwhile, out of 98 patients on peritonesoucopy method, 43 develop complication, with median time-to-event for complication was beyond 365 days.
+Meanwhile, out of 98 patients on peritoneoscopy method, 43 develop complication, with median time-to-event for complication was beyond 365 days.
 
 ```{r}
 compx_km <- survfit(Surv(time = CxDur, Compx == "Yes") ~ Method,
@@ -268,11 +268,11 @@ Parametric Survival Analysis with Weibull Model was done to measure the time-to-
 ```{r}
 cxsurvweimod_method <- survreg(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1, dist = "weibull")
 summary(cxsurvweimod_method)
-cxsurvweimod_method_res <- ConvertWeibull(cxsurvweimod_method, conf.level = 0.95)
-cxsurvweimod_method_res
+ConvertWeibull(cxsurvweimod_method, conf.level = 0.95)
+
 ```
 
-variable method was not significant, with time ratio (TR) of peritonesocopy method (as compare to percutaneous method) to develop catheter complication was `r round(cxsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(cxsurvweimod_method_res$ETR, 2)[,2:3]`) times faster. the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to develop catheter was `r round(cxsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(cxsurvweimod_method_res$HR, 2)[,2:3]`) times higher
+variable method was not significant, with time ratio (TR) of duration for catheter complication for peritonesocopy method was `r round(cxsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(cxsurvweimod_method_res$ETR, 2)[,2:3]`) times than the duration for catheter complication for percutaneous method. The hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to develop catheter was `r round(cxsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(cxsurvweimod_method_res$HR, 2)[,2:3]`) times higher.
 
 
 ```{r}
@@ -298,8 +298,7 @@ Parametric Survival Analysis with Weibull model was done to find the difference 
 ```{r}
 cxsurvweimod <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "weibull")
 summary(cxsurvweimod)
-cxsurvweimod_res <- ConvertWeibull(cxsurvweimod, conf.level = 0.95)
-cxsurvweimod_res
+ConvertWeibull(cxsurvweimod, conf.level = 0.95)
 ```
 
 when adjusted to gender, age and diabetes status, there was no significant association between method and time-to-event of catheter complication, with time ratio (TR) of peritonesocopy method (as compare to percutaneous method) to develop catheter complication was `r round(cxsurvweimod_res$ETR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$ETR, 2)[4,2:3]`). 
@@ -312,11 +311,12 @@ Prediction for Survival Time - Catheter Complication
 
 ```{r}
 newds <- data.frame(expand.grid(Gender = "Male", Age = seq(40,60,10), CMDM = c("DM", "No"), Method = c("Percutaneous Method", "Peritoneoscopy Method")))
-augment(cxsurvweimod, newdata=newds, type.predict = "quantile")
-
-predmod <- predict(cxsurvweimod, newdata = newds, type = "quantile", p = .5)
-cbind(newds, predmod) %>% mutate("Predicted Complication (Days)" = predmod) %>% select(Gender, Age, CMDM, Method, "Predicted Complication (Days)")
-#augment(cxsurvweimod, newdata = pdcds1_ted, type.predict="response") %>% select(Gender, CMDM, Method, CxDur, .fitted)
+predmod <- predict(cxsurvweimod, newdata = newds, type = "quantile", p = c(.25,.5,.75))
+data.frame(cbind(newds, predmod)) %>%
+  mutate("Predicted Complication Time (Days) - Median" = X2,
+         "Predicted Complication Time (Days) - Q1" = X1,
+         "Predicted Complication Time (Days) - Q3" = X3) %>%
+  select(Gender, Age, CMDM, Method, "Predicted Complication Time (Days) - Q1", "Predicted Complication Time (Days) - Median", "Predicted Complication Time (Days) - Q3")
 ```
 
 Prediction for Survival Probability
@@ -335,11 +335,10 @@ Parametric Survival Analysis with Weibull Model was done to measure the time-to-
 ```{r}
 removalsurvweimod_method <- survreg(Surv(RemovalDur, CatheterStatus == "Catheter Removed") ~ Method, data = pdcds1, dist = "weibull")
 summary(removalsurvweimod_method)
-removalsurvweimod_method_res <- ConvertWeibull(removalsurvweimod_method, conf.level = 0.95)
-removalsurvweimod_method_res
+ConvertWeibull(removalsurvweimod_method, conf.level = 0.95)
 ```
 
-variable method was significant, with time ratio (TR) of duration for catheter removal for peritonesocopy method was `r round(removalsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$ETR, 2)[,2:3]`) times than duration for catheter removal for percutaneous method. The hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$HR, 2)[,2:3]`) times.
+variable method was significant, with time ratio (TR) of duration for catheter removal for peritonesocopy method was `r round(removalsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$ETR, 2)[,2:3]`) times than the duration for catheter removal for percutaneous method. The hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$HR, 2)[,2:3]`) times.
 
 ```{r}
 WeibullDiag(Surv(RemovalDur, CatheterStatus == "Catheter Removed") ~ Method, data = pdcds1)
@@ -364,8 +363,7 @@ Parametric Survival Analysis with Weibull model was done to find the difference 
 ```{r}
 removalsurvweimod <- survreg(Surv(RemovalDur, Compx == "Yes") ~ Gender + Age + CMDM + Method, data = pdcds1, dist = "weibull")
 summary(removalsurvweimod)
-removalsurvweimod_res <- ConvertWeibull(removalsurvweimod, conf.level = 0.95)
-removalsurvweimod_res
+ConvertWeibull(removalsurvweimod, conf.level = 0.95)
 ```
 
 when adjusted to gender, age and diabetes status, the method of catheterization had significant effect on catheter survival, with time ratio (TR) of peritonesocopy method to catheter removal was `r round(removalsurvweimod_res$ETR, 2)[4,1]` (95% CI = `r round(removalsurvweimod_res$ETR, 2)[4,2:3]`) times longer than the times need for catheter removal for percutaneous method. 
@@ -374,7 +372,17 @@ the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous metho
 
 ### Prediction
 
-Prediction for Survival Time
+Prediction for Survival Time - Catheter Removal
+
+```{r}
+
+removal_predmod <- predict(removalsurvweimod, newdata = newds, type = "quantile", p = c(.25,.5,.75))
+data.frame(cbind(newds, removal_predmod)) %>%
+  mutate("Predicted Removal Time (Days) - Median" = X2,
+         "Predicted Removal Time (Days) - Q1" = X1,
+         "Predicted Removal Time (Days) - Q3" = X3) %>%
+  select(Gender, Age, CMDM, Method, "Predicted Removal Time (Days) - Q1", "Predicted Removal Time (Days) - Median", "Predicted Removal Time (Days) - Q3")
+```
 
 ```{r}
 #augment(cxsurvweimod, newdata = pdcds1_ted, type.predict="response") %>% select(Gender, CMDM, Method, CxDur, .fitted)
