@@ -1,7 +1,7 @@
 ---
-title: "Assignment - Survival"
-author: "Mohd Azmi"
-date: "06/07/2020"
+title: "Assignment - Survival Parametric"
+author: "Dr Mohd Azmi (P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
     code_folding: hide
@@ -251,7 +251,7 @@ ggsurvplot(compx_km, data = pdcds1, pval = T) + ggtitle("KM Plot for catheter co
 KM Plot for catheter removal was shown below
 
 ```{r}
-ggsurvplot(removal_km, data = pdcds1, pval = T) + ggtitle("KM Plot for catheter removal")
+ggsurvplot(removal_km, data = pdcds1, pval = T)+ ggtitle("KM Plot for catheter removal")
 ```
 
 
@@ -263,7 +263,44 @@ Due to small cells, variables ethnicity, presence of comorbidities, hypertension
 
 ### Univariable
 
-Parametric Survival Analysis with Weibull Model was done to measure the time-to-event of catheter complication, stratified by method of catheterization, as shown below.
+1. Gender
+
+```{r}
+cxsurvweimod_gender <- survreg(Surv(CxDur, Compx == "Yes") ~ Gender, data = pdcds1, dist = "weibull")
+summary(cxsurvweimod_gender)
+cxsurvweimod_gender_res <- ConvertWeibull(cxsurvweimod_gender, conf.level = 0.95)
+cxsurvweimod_gender_res
+```
+
+variable gender was not significant, with time ratio (TR) of female to develop catheter complication was `r round(cxsurvweimod_gender_res$ETR, 2)[,1]` (95% CI = `r round(cxsurvweimod_gender_res$ETR, 2)[,2:3]`) times need as compared to the time need for male to develop catheter complication. the hazard ratio (HR) of female (as compare to male) to develop catheter complication was `r round(cxsurvweimod_gender_res$HR, 2)[,1]` (95% CI = `r round(cxsurvweimod_gender_res$HR, 2)[,2:3]`) times higher
+
+```{r}
+WeibullDiag(Surv(CxDur, Compx == "Yes") ~ Gender, data = pdcds1)
+```
+
+Weibull model seems fit for gender variable, as the lines were parallel and linear
+
+2. DM Status
+
+```{r}
+cxsurvweimod_dm <- survreg(Surv(CxDur, Compx == "Yes") ~ CMDM, data = pdcds1, dist = "weibull")
+summary(cxsurvweimod_dm)
+cxsurvweimod_dm_res <- ConvertWeibull(cxsurvweimod_dm, conf.level = 0.95)
+cxsurvweimod_dm_res
+```
+
+variable DM was significant, with time ratio (TR) of those with DM (as compare to those without DM) to develop catheter complication was `r round(cxsurvweimod_dm_res$ETR, 2)[,1]` (95% CI = `r round(cxsurvweimod_dm_res$ETR, 2)[,2:3]`) times faster. the hazard ratio (HR) of those with DM (as compare to those without DM) to develop catheter was `r round(cxsurvweimod_dm_res$HR, 2)[,1]` (95% CI = `r round(cxsurvweimod_dm_res$HR, 2)[,2:3]`) times higher
+
+
+```{r}
+WeibullDiag(Surv(CxDur, Compx == "Yes") ~ CMDM, data = pdcds1)
+```
+
+Weibull model seems unfit for DM variable, as the lines were not parallel nor linear
+
+
+
+3. Catheter placement method
 
 ```{r}
 cxsurvweimod_method <- survreg(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1, dist = "weibull")
@@ -282,14 +319,9 @@ WeibullDiag(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1)
 Weibull model seems unfit for gender variable, as the lines were linear but not parallel.
 
 ```{r}
-cxsurv_method_kmfit <- tidy(survfit(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1))
-ggplot(cxsurv_method_kmfit, aes(x= log(time), y = log(estimate/(1-estimate)), colour = strata)) +
-  geom_point() + geom_line() +
-  theme_bw() + ggtitle("PH Assumption Checking Plot") + theme(legend.position = c(0.8, 0.8))
+kmfit<-survfit(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1)
+plot(log(kmfit$time), log(kmfit$surv/(1-kmfit$surv)))
 ```
-
-The plot seems straight line and parallel, thus does not violated proportional hazard assumptions.
-
 
 ### Multivariable
 
@@ -306,20 +338,11 @@ when adjusted to gender, age and diabetes status, there was no significant assoc
 
 the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to develop catheter was `r round(cxsurvweimod_res$HR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$HR, 2)[4,2:3]`) times higher, when adjusted to gender, age and diabetes status.
 
-### Prediction
-
-Prediction for Survival Time - Catheter Complication
-
 ```{r}
-newds <- data.frame(expand.grid(Gender = "Male", Age = seq(40,60,10), CMDM = c("DM", "No"), Method = c("Percutaneous Method", "Peritoneoscopy Method")))
-augment(cxsurvweimod, newdata=newds, type.predict = "quantile")
-
-predmod <- predict(cxsurvweimod, newdata = newds, type = "quantile", p = .5)
-cbind(newds, predmod) %>% mutate("Predicted Complication (Days)" = predmod) %>% select(Gender, Age, CMDM, Method, "Predicted Complication (Days)")
-#augment(cxsurvweimod, newdata = pdcds1_ted, type.predict="response") %>% select(Gender, CMDM, Method, CxDur, .fitted)
+kmfit<-survfit(Surv(CxDur, Compx == "Yes") ~ Method, data = pdcds1)
+plot(log(kmfit$time), log(kmfit$surv/(1-kmfit$surv)))
 ```
 
-Prediction for Survival Probability
 
 
 ## Parametric Survival Analysis - Catheter Removal
@@ -330,32 +353,39 @@ Due to small cells, variables ethnicity, presence of comorbidities, hypertension
 
 ### Univariable
 
-Parametric Survival Analysis with Weibull Model was done to measure the time-to-event of catheter removal, stratified by method of catheterization, as shown below.
+1. Gender
 
 ```{r}
-removalsurvweimod_method <- survreg(Surv(RemovalDur, CatheterStatus == "Catheter Removed") ~ Method, data = pdcds1, dist = "weibull")
+removalsurvweimod_gender <- survreg(Surv(RemovalDur, Compx == "Yes") ~ Gender, data = pdcds1, dist = "weibull")
+summary(removalsurvweimod_gender)
+removalsurvweimod_gender_res <- ConvertWeibull(removalsurvweimod_gender, conf.level = 0.95)
+removalsurvweimod_gender_res
+```
+
+variable gender was not significant, with time ratio (TR, 95% CI Lower Limit, 95% CI Upper Limit) of female (as compare to male) to catheter removal was `r round(removalsurvweimod_gender_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_gender_res$ETR, 2)[,2:3]`) times faster. the hazard ratio (HR) of female (as compare to male) to catheter removal was `r round(removalsurvweimod_gender_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_gender_res$HR, 2)[,2:3]`) times higher
+
+2. DM Status
+
+```{r}
+removalsurvweimod_dm <- survreg(Surv(RemovalDur, Compx == "Yes") ~ CMDM, data = pdcds1, dist = "weibull")
+summary(removalsurvweimod_dm)
+removalsurvweimod_dm_res <- ConvertWeibull(removalsurvweimod_dm, conf.level = 0.95)
+removalsurvweimod_dm_res
+```
+
+variable DM was significant, with time ratio (TR) of those with DM (as compare to those without DM) to catheter removal was `r round(removalsurvweimod_dm_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_dm_res$ETR, 2)[,2:3]`) times faster. the hazard ratio (HR) of those with DM (as compare to those without DM) to catheter removal was `r round(removalsurvweimod_dm_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_dm_res$HR, 2)[,2:3]`) times higher
+
+
+3. Catheter placement method
+
+```{r}
+removalsurvweimod_method <- survreg(Surv(RemovalDur, Compx == "Yes") ~ Method, data = pdcds1, dist = "weibull")
 summary(removalsurvweimod_method)
 removalsurvweimod_method_res <- ConvertWeibull(removalsurvweimod_method, conf.level = 0.95)
 removalsurvweimod_method_res
 ```
 
-variable method was significant, with time ratio (TR) of duration for catheter removal for peritonesocopy method was `r round(removalsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$ETR, 2)[,2:3]`) times than duration for catheter removal for percutaneous method. The hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$HR, 2)[,2:3]`) times.
-
-```{r}
-WeibullDiag(Surv(RemovalDur, CatheterStatus == "Catheter Removed") ~ Method, data = pdcds1)
-```
-
-Weibull model seems unfit for method variable, as the lines were linear but not parallel.
-
-```{r}
-removalsurv_method_kmfit <- tidy(survfit(Surv(RemovalDur, CatheterStatus == "Catheter Removed") ~ Method, data = pdcds1))
-ggplot(removalsurv_method_kmfit, aes(x= log(time), y = log(estimate/(1-estimate)), colour = strata)) +
-  geom_point() + geom_line() +
-  theme_bw() + ggtitle("PH Assumption Checking Plot - Catheter Removal") + theme(legend.position = c(0.8, 0.8))
-```
-
-The plot seems straight line and parallel, thus does not violated proportional hazard assumptions.
-
+variable method was not significant, with time ratio (TR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_method_res$ETR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$ETR, 2)[,2:3]`) times faster. the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_method_res$HR, 2)[,1]` (95% CI = `r round(removalsurvweimod_method_res$HR, 2)[,2:3]`) times higher
 
 ### Multivariable
 
@@ -372,15 +402,12 @@ when adjusted to gender, age and diabetes status, the method of catheterization 
 
 the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to catheter removal was `r round(removalsurvweimod_res$HR, 2)[4,1]` (95% CI = `r round(removalsurvweimod_res$HR, 2)[4,2:3]`) times , when adjusted to gender, age and diabetes status.
 
-### Prediction
-
-Prediction for Survival Time
+## Prediction
 
 ```{r}
 #augment(cxsurvweimod, newdata = pdcds1_ted, type.predict="response") %>% select(Gender, CMDM, Method, CxDur, .fitted)
 ```
 
-Prediction for Survival Probability
 
 # Discussion
 
