@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+source: https://martinctc.github.io/blog/vignette-simulating-a-minimal-spss-dataset-from-r/
+
 ```{r}
 library(pacman)
 p_load(surveytoolbox, haven, summarytools, tidyverse)
