@@ -1,0 +1,66 @@
+---
+title: "Generate Minimal SPSS dataset"
+author: "Mohd Azmi"
+date: "13/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+source: https://martinctc.github.io/blog/vignette-simulating-a-minimal-spss-dataset-from-r/
+
+```{r}
+library(pacman)
+p_load(surveytoolbox, haven, summarytools, tidyverse)
+```
+
+
+```{r}
+set.seed(119)
+v_districtid <- c(1:100)
+v_total <- rpois(100,8) %>%
+  set_varl("No of Total Notification")
+v_delay <- v_total %>% 
+  map_dbl(function(x){
+  if(x >=11){
+    sample(5:9, size = 1, prob = seq(10,30,5))
+  } else if(x >= 6){
+    sample(2:4, size = 1, prob = c(40,35,25))
+  } else{
+    sample(0:1, size = 1, prob = c(60,40))
+  }
+  }) %>%
+  set_varl("No of Delayed Notification")
+v_popnum <- v_total %>% 
+  map_dbl(function(x){
+  if(x >=11){
+    sample(70:80, size = 1)
+  } else if(x >= 6){
+    sample(50:60, size = 1)
+  } else{
+    sample(20:40, size = 1)
+  }
+  }) %>%
+  set_varl("No of Population (hundred)")
+v_ppka <- v_popnum %>% 
+  map_dbl(function(x){
+    if(x >= 65){
+      sample(0:1, size = 1, prob = c(70,30))
+    } else if(x >= 45){
+      sample(0:1, size = 1, prob = c(50,50))
+    } else{
+      sample(0:1, size = 1, prob = c(30,70))
+    }
+  }) %>% 
+  set_vall(value_labels = c("No PPKA" = 1, "PPKA Present" = 0)) %>% 
+  set_varl("Present of PPKA")
+```
+
+
+```{r}
+data <- tibble(DistID = v_districtid, PPKA = v_ppka, PopNum = v_popnum, total = v_total, delay = v_delay) %>% mutate_if(is.labelled, ~(as_factor(.)))
+data
+```
+

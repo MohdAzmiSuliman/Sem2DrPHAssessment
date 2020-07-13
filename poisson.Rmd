@@ -22,7 +22,7 @@ Delayed notification will delay public health action.
 
 In this example, the researcher would like to measure / predict number of delayed notification.
 
-Note: Data was generated (Refer [link](#dataset-data-exploration))
+Note: Data was generated (Refer [Dataset](#dataset-data-exploration))
 
 # Environment
 
@@ -39,40 +39,48 @@ p_load(tidyverse, haven, DT)
 p_load(surveytoolbox)
 set.seed(100)
 
-v_id <- seq(1, 10000) %>% set_varl("Record Identifier")
+v_districtid <- c(1:100) %>% set_varl("District ID")
+v_total <- rpois(100,8) %>% set_varl("No of Total Notification")
 
-v_state <- sample(0:4, size = 10000, replace = T, prob = seq(0.3, 0.7, 0.1)) %>%
-  set_vall(value_labels = c("Kel" = 0, "Sab" = 1, "Ked" = 2, "Sel" = 3, "Joh" = 4)) %>%
-  set_varl("State")
-
-v_disease <- v_state %>%
+v_delay <- v_total %>% 
   map_dbl(function(x){
-    if(x == 3){
-      sample(0:4, size = 1, prob = c(10, 12, 20, 23, 35))
-    } else if(x == 1){
-      sample(0:4, size = 1, prob = c(10, 27, 20, 23, 20))
-    } else {
-      sample(0:4, size = 1, prob = c(10, 17, 20, 23, 30)) 
-    }
-  }) %>%
-  set_vall(value_labels = c("MERS" = 0, "Mala" = 1, "Meas" = 2, "HFMD" = 3, "Deng" = 4)) %>%
-  set_varl("Disease")
+  if(x >=11){
+    sample(5:9, size = 1, prob = seq(10,30,5))
+  } else if(x >= 6){
+    sample(2:4, size = 1, prob = c(40,35,25))
+  } else{
+    sample(0:1, size = 1, prob = c(60,40))
+  }
+  }) %>% set_varl("No of Delayed Notification")
 
-v_delay <- v_disease %>%
+v_popnum <- v_total %>% 
   map_dbl(function(x){
-    if(x == 4){
-      sample(0:1, size = 1, prob = c(80,20))
-    } else if(x == 3){
-      sample(0:1, size = 1, prob = c(60, 40))
-    } else {
-      sample(0:1, size = 1, prob = c(70, 30)) 
-    }
-  }) %>%
-  set_vall(value_labels = c("No" = 0, "Yes" = 1)) %>%
-  set_varl("DelayStat")
+  if(x >=11){
+    sample(60:80, size = 1)
+  } else if(x >= 6){
+    sample(40:60, size = 1)
+  } else{
+    sample(20:40, size = 1)
+  }
+  }) %>% set_varl("No of Population (hundred)")
 
-deldisds <- tibble(id = v_id, state=v_state, disease = v_disease, delaystat = v_delay)
-deldisds %>% mutate_if(is.labelled, ~(as_factor(.))) %>% select(-id) %>% datatable()
+v_ppka <- v_popnum %>% 
+  map_dbl(function(x){
+    if(x >= 65){
+      sample(0:1, size = 1, prob = c(70,30))
+    } else if(x >= 45){
+      sample(0:1, size = 1, prob = c(50,50))
+    } else{
+      sample(0:1, size = 1, prob = c(30,70))
+    }
+  }) %>% 
+  set_vall(value_labels = c("No PPKA" = 1, "PPKA Present" = 0)) %>% 
+  set_varl("Present of PPKA")
+
+deldisds <- tibble(id = v_districtid, ppka = v_ppka, pop = v_popnum, total = v_total, delaynum = v_delay) %>% mutate_if(is.labelled, ~(as_factor(.)))
+datatable(deldisds,
+          class = "cell-border stripe",
+          colnames = c("DistrictID", "PPKA Status", "Population No. ('000)", "Total Notification", "No. of Delayed Notification"))
 ```
 
 
