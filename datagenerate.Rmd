@@ -1,0 +1,69 @@
+---
+title: "Generate Minimal SPSS dataset"
+author: "Mohd Azmi"
+date: "13/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pacman)
+p_load(surveytoolbox, haven, summarytools, tidyverse)
+```
+
+```{r}
+set.seed(100)
+v_id <- seq(1, 10000) %>% set_varl("Record Identifier")
+v_state <- sample(0:4, size = 10000, replace = T, prob = seq(0.3, 0.7, 0.1)) %>%
+  set_vall(value_labels = c("Kel" = 0, "Sab" = 1, "Ked" = 2, "Sel" = 3, "Joh" = 4)) %>%
+  set_varl("State")
+```
+
+
+```{r}
+v_disease <-
+  v_state %>%
+  map_dbl(function(x){
+    if(x == 3){
+      sample(0:4, size = 1, prob = c(10, 12, 20, 23, 35))
+    } else if(x == 1){
+      sample(0:4, size = 1, prob = c(10, 27, 20, 23, 20))
+    } else {
+      sample(0:4, size = 1, prob = c(10, 17, 20, 23, 30)) 
+    }
+  }) %>%
+  set_vall(value_labels = c("MERS" = 0, "Mala" = 1, "Meas" = 2, "HFMD" = 3, "Deng" = 4)) %>%
+  set_varl("Disease")
+```
+
+
+```{r}
+v_delay <-
+  v_disease %>%
+  map_dbl(function(x){
+    if(x == 4){
+      sample(0:1, size = 1, prob = c(80,20))
+    } else if(x == 3){
+      sample(0:1, size = 1, prob = c(60, 40))
+    } else {
+      sample(0:1, size = 1, prob = c(70, 30)) 
+    }
+  }) %>%
+  set_vall(value_labels = c("No" = 0, "Yes" = 1)) %>%
+  set_varl("DelayStat")
+```
+
+
+```{r}
+deldisds <- tibble(id = v_id, state=v_state, disease = v_disease, delaystat = v_delay)
+deldisds
+deldisdscat <- deldisds %>% mutate_if(is.labelled, ~(as_factor(.)))
+deldisdscat
+```
+
+
+
+
