@@ -1,0 +1,25 @@
+---
+title: "Assignment - Machine Learning (Regression))"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+https://www.analyticsvidhya.com/blog/2017/09/creating-visualizing-neural-network-in-r/ - to update dataset, usinng normalize/standardize value
+
+# Motivation
+
+choice
+1. check previous research - outcome score
