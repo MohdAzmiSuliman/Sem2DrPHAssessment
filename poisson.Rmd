@@ -1,5 +1,5 @@
 ---
-title: "Assignment - Poisson Regression(Rate)"
+title: "Assignment - Poisson Regression (Rate)"
 author: "Dr Mohd Azmi P-UD 0079/19"
 date: '`r format(Sys.Date(), "%d %B, %Y")`'
 output: 

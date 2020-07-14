@@ -1,0 +1,74 @@
+---
+title: "Assignment - Machine Learning (Classification))"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+# Motivation
+
+Predict which notification will get delayed.
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(tidyverse, haven, DT, rpart)
+```
+
+## Dataset & Data Exploration
+
+```{r}
+delnotids <- read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
+delnotids %>% select(-id) %>% datatable()
+```
+
+
+# Analysis & Result
+
+## Descriptive
+
+### Sociodemographic
+
+
+## Survival Analysis
+
+
+### Prediction
+
+
+# Discussion
+
+
+# Conclusion
+
+# Reference
+
+
+# Additional Info
+
+```{r}
+
+```
+
+
+
+
+```{r}
+sessionInfo()
+```
+

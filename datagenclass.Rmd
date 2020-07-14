@@ -1,0 +1,57 @@
+
+
+```{r}
+library(pacman)
+p_load(tidyverse, summarytools)
+set.seed(119)
+```
+
+```{r}
+library(haven)
+editds <- read_sav("~/Research Data For Analysis.sav Final.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
+editds
+freq(editds$DxRecode)
+```
+
+
+```{r}
+dengueds <- editds %>% filter(DxRecode == "Dengue")
+srow_den <- sample(nrow(dengueds), nrow(dengueds)*0.7)
+dengueds1 <- dengueds[srow_den,]
+freq(dengueds1$DelayCode)
+dengueds1_yes <- dengueds1%>% filter(DelayCode == "Yes")
+dengueds1_no <- dengueds1%>% filter(DelayCode == "No")
+srow_denno <- sample(nrow(dengueds1_no), nrow(dengueds1_no)*0.1)
+dengueds1_no_s <- dengueds1_no[srow_denno,]
+denfinds <- rbind.data.frame(dengueds1_yes, dengueds1_no_s)
+freq(denfinds$DelayCode)
+
+```
+
+```{r}
+hfmdds <- editds %>% filter(DxRecode == "HFMD")
+freq(hfmdds$DelayCode)
+hfmdds_yes <- hfmdds%>% filter(DelayCode == "Yes")
+hfmdds_no <- hfmdds%>% filter(DelayCode == "No")
+srow_hfmdno <- sample(nrow(hfmdds_no), nrow(hfmdds_no)*0.3)
+hfmdds_no_s <- hfmdds_no[srow_hfmdno,]
+hfmdfinds <- rbind.data.frame(hfmdds_yes, hfmdds_no_s)
+freq(hfmdfinds$DelayCode)
+```
+
+```{r}
+foodds <- editds %>% filter(DxRecode == "Food Poisoning")
+measds <- editds %>% filter(DxRecode == "Measles")
+```
+
+```{r}
+alldata0 <- rbind.data.frame(denfinds, hfmdfinds, foodds, measds) %>% select(-DataID)
+dataid <- 1:47295
+alldata <- tibble(id = dataid, alldata0)
+freq(alldata$DxRecode)
+```
+
+```{r}
+write_sav(alldata, "classds.sav", compress = F)
+```
+
