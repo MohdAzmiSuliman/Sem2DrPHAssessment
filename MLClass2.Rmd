@@ -36,16 +36,22 @@ set.seed(119)
 ## Dataset & Data Exploration
 
 ```{r}
-burnDS <- read.delim("BURN1000.txt", header = TRUE, sep = "\t", dec = ".")
-burnDS2 <- burnDS %>%
+burnDS0 <- read.delim("BURN1000.txt", header = TRUE, sep = "\t", dec = ".")
+
+burnDS1 <- burnDS0 %>%
+  mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")), Gender = GENDER, Ethnic = RACEC, Inhale = INH_INJ, Flame = FLAME) %>%
+  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+
+burnDS2 <- burnDS0 %>%
   mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")),
          Gender = factor(GENDER, labels = c("Female", "Male")),
          Ethnic = factor(RACEC, labels = c("Non-white", "White")),
          Inhale = factor(INH_INJ, labels = c("No", "Yes")),
          Flame = factor(FLAME, labels = c("No", "Yes"))) %>%
   select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
-burnDS
-burnDS2
+
+burnDS1 %>% datatable()
+burnDS2 %>% datatable()
 ```
 
 ```{r}
@@ -82,8 +88,7 @@ ggplot(burnDS2, aes(x=Flame, fill=Flame)) + geom_bar() + facet_wrap(~DcStat)
 ## Machine Learning - Decision Tree
 
 ### Decision Tree Model
-,
-                       control = rpart.control(cp=0.001)
+
 Using train dataset
 
 ```{r}
@@ -112,3 +117,46 @@ dteval_res
 ```
 
 
+## Machine Learning - Artificial Neural Network
+
+### Artificial Neural Network Model
+
+using train dataset
+
+```{r}
+burnDS1_train <- burnDS1[sRow,]
+burnDS1_test <- burnDS1[-sRow,]
+
+burnDS_annmod <- neuralnet(DcStat ~ AGE + Gender + Ethnic + TBSA + Inhale + Flame, data = burnDS1_train, hidden=2, linear.output = FALSE)
+plot(burnDS_annmod)
+```
+
+NNmodel = neuralnet(diabetes ~ pregnant + glucose + pressure + triceps + insulin + mass + pedigree + age, data=trainds, hidden=1, linear.output = FALSE)
+plot(NNmodel)
+
+
+NNresults = predict(NNmodel, testds, type='class')
+
+### Prediction
+
+```{r}
+burnDS1_test_annpred0 <- predict(burnDS_annmod, burnDS1_test, type = "class")
+
+burnDS1_test_annpred1 <- apply(burnDS1_test_annpred0, 1, which.max)
+burnDS1_test_annpred1[burnDS1_test_annpred1==1]='Alive'
+burnDS1_test_annpred1[burnDS1_test_annpred1==2]='Death'
+
+
+burnDS1_test_annpredcomb <- tibble(burnDS1_test, Predicted = as.factor(burnDS1_test_annpred1)) %>%
+  mutate(DcStat = as.factor(DcStat))
+burnDS1_test_annpredcomb %>% select(DcStat, Predicted, everything()) %>% datatable()
+```
+
+### Model Evaluation
+
+using test dataset
+
+```{r}
+anneval_res <- confusionMatrix(burnDS1_test_annpredcomb$Predicted, burnDS1_test_annpredcomb$DcStat, positive = "Death")
+anneval_res
+```
