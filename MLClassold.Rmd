@@ -1,0 +1,134 @@
+---
+title: "Assignment - Machine Learning (Classification))"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+# Motivation
+
+Predict which notification will get delayed.
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(tidyverse, haven, DT, rpart, summarytools, broom, caret, neuralnet)
+set.seed(119)
+```
+
+## Dataset & Data Exploration
+
+```{r}
+delnotids <- read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
+#delnotids <- delnotids0[sample(47295, 5000),]
+#delnotids %>% select(-id) %>% datatable()
+```
+
+```{r}
+
+sRow <- sample(nrow(delnotids), nrow(delnotids)*.7)
+
+delnotids_train <- delnotids[sRow,]
+delnotids_test <- delnotids[-sRow,]
+```
+
+
+# Analysis & Result
+
+## Descriptive
+
+```{r}
+freq(delnotids)
+```
+
+
+
+
+## Machine Learning - Decision Tree
+
+### Decision Tree Model
+
+Using train dataset
+
+```{r}
+delnoti_dtmod <- rpart(DelayCode ~ Disease + NotiReqCode + FaciCollapseCode + DxWeekdayRecode + CaseClassReCode + DxStatRecodeNoMissing + ACDPCDReCode + CaseRegisterCode + Region + QuarterCode,
+                       data = delnotids_train,
+                       method = "class",
+                       parms = list(split = "information"),
+                       control = rpart.control(cp=0.001))
+plot(delnoti_dtmod)
+text(delnoti_dtmod)
+```
+
+### Prediction
+
+```{r}
+delnotids_test_pred <- predict(delnoti_dtmod, newdata = delnotids_test, type = "class")
+delnotids_test_predcomb <- tibble(delnotids_test, Predicted = delnotids_test_pred)
+delnotids_test_predcomb %>% select(DelayCode, Predicted, Disease, NotiReqCode, FaciCollapseCode, DxWeekdayRecode, CaseClassReCode, DxStatRecodeNoMissing, ACDPCDReCode, CaseRegisterCode, Region, QuarterCode)
+```
+
+
+
+### Model Evaluation
+
+using test dataset
+
+```{r}
+dteval_res <- confusionMatrix(delnotids_test_predcomb$Predicted, delnotids_test_predcomb$DelayCode, positive = "Yes")
+dteval_res
+```
+
+The model have a mixture picture.
+
+While the accuracy (or overall percentage) is good with `r round((dteval_res$overall['Accuracy'])*100,1)`% correctly classify the outcome and good specificity (able to predict outcome "no") of `r round((dteval_res$byClass['Specificity'])*100,1)`%, but the sensitivity was low at `r round((dteval_res$byClass['Sensitivity'])*100,1)`% only.
+
+## Machine Learning - Artificial Neural Network
+
+```{r}
+delnotidsNum <- read_sav("classdsfin2.sav")
+delnotidsNum_train <- delnotidsNum[sRow,]
+delnotidsNum_test <- delnotidsNum[-sRow,]
+
+
+delnoti_annmod <- neuralnet(DelayCode ~ Disease + NotiReqCode + FaciCollapseCode + DxWeekdayRecode + CaseClassReCode + DxStatRecodeNoMissing + ACDPCDReCode + CaseRegisterCode + Region + QuarterCode, data = delnotidsNum_train, hidden=1, linear.output = FALSE)
+plot(delnoti_annmod)
+```
+
+
+# Discussion
+
+
+# Conclusion
+
+# Reference
+
+
+# Additional Info
+
+```{r}
+
+```
+
+
+
+
+```{r}
+sessionInfo()
+```
+

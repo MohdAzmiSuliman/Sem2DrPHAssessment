@@ -27,14 +27,23 @@ Predict which notification will get delayed.
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, rpart)
+p_load(tidyverse, haven, DT, rpart, summarytools)
 ```
 
 ## Dataset & Data Exploration
 
 ```{r}
 delnotids <- read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
-delnotids %>% select(-id) %>% datatable()
+delnotids
+#delnotids %>% select(-id) %>% datatable()
+```
+
+```{r}
+set.seed(119)
+sRow <- sample(nrow(delnotids), nrow(delnotids)*.7)
+
+delnotids_train <- delnotids[sRow,]
+delnotids_test <- delnotids[-sRow,]
 ```
 
 
@@ -42,10 +51,23 @@ delnotids %>% select(-id) %>% datatable()
 
 ## Descriptive
 
-### Sociodemographic
+```{r}
+freq(delnotids)
+```
 
 
-## Survival Analysis
+
+
+## Machine Learning - Decision Tree
+
+```{r}
+delnoti_dtmod <- rpart(DelayCode ~ Disease + NotiReqCode + FaciCollapseCode + DxWeekdayRecode + CaseClassReCode + DxStatRecodeNoMissing + ACDPCDReCode + CaseRegisterCode + Region + QuarterCode,
+                       data = delnotids_train,
+                       method = "class",
+                       parms = list(split = "information"))
+plot(delnoti_dtmod)
+text(delnoti_dtmod)
+```
 
 
 ### Prediction

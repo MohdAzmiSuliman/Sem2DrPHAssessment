@@ -1,0 +1,114 @@
+---
+title: "Assignment - Machine Learning (Classification))"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+# Motivation
+
+The dataset is taken from National Burn Repository 2007 Report (Hosmer, 2013). In this study, they record the hospital discharge status, patient's gender, patient's ethnicity, total burn surface area, inhalation injury and flame involvement. 1,000 data were collected (from total of 40,000 original data) in the dataset, BURN1000, which oversampled patient who died in hospital and undersampled subject who lived.
+
+In this study, we would like to ascertain factors associated with death upon discharge among the burn injury patient. 
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(tidyverse, haven, DT, rpart, summarytools, broom, caret, neuralnet)
+set.seed(119)
+```
+
+## Dataset & Data Exploration
+
+```{r}
+burnDS <- read.delim("BURN1000.txt", header = TRUE, sep = "\t", dec = ".")
+burnDS2 <- burnDS %>%
+  mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")),
+         Gender = factor(GENDER, labels = c("Female", "Male")),
+         Ethnic = factor(RACEC, labels = c("Non-white", "White")),
+         Inhale = factor(INH_INJ, labels = c("No", "Yes")),
+         Flame = factor(FLAME, labels = c("No", "Yes"))) %>%
+  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+burnDS
+burnDS2
+```
+
+```{r}
+sRow <- sample(nrow(burnDS2), nrow(burnDS2)*.7)
+
+burnDS2_train <- burnDS2[sRow,]
+burnDS2_test <- burnDS2[-sRow,]
+```
+
+
+
+# Descriptive Analysis
+
+## Data Summary
+
+The median age of the participant was 31.95 years old (IQR = 49.38), while the median total burn surface area among the participant was 6% (IQR = 13.5%). Most of the participant was male (n = 705), white ethnicity (n = 589), had no inhalation injury (n = 878) and had flame involvement (n = 529)
+
+```{r}
+summary(burnDS2)
+```
+
+The distribution of each variable, grouped by discharge status, shown as below
+
+```{r, message=F}
+ggplot(burnDS2, aes(x=AGE)) + geom_histogram() + facet_wrap(~DcStat)
+ggplot(burnDS2, aes(x=TBSA)) + geom_histogram() + facet_wrap(~DcStat)
+ggplot(burnDS2, aes(x=Gender, fill=Gender)) + geom_bar() + facet_wrap(~DcStat)
+ggplot(burnDS2, aes(x=Ethnic, fill=Ethnic)) + geom_bar() + facet_wrap(~DcStat)
+ggplot(burnDS2, aes(x=Inhale, fill=Inhale)) + geom_bar() + facet_wrap(~DcStat)
+ggplot(burnDS2, aes(x=Flame, fill=Flame)) + geom_bar() + facet_wrap(~DcStat)
+```
+
+
+## Machine Learning - Decision Tree
+
+### Decision Tree Model
+,
+                       control = rpart.control(cp=0.001)
+Using train dataset
+
+```{r}
+burnDS_dtmod <- rpart(DcStat ~ ., data = burnDS2_train, method = "class", parms = list(split = "information"))
+plot(burnDS_dtmod)
+text(burnDS_dtmod)
+```
+
+### Prediction
+
+```{r}
+burnDS2_test_dtpred <- predict(burnDS_dtmod, newdata = burnDS2_test, type = "class")
+burnDS2_test_dtpredcomb <- tibble(burnDS2_test, Predicted = burnDS2_test_dtpred)
+burnDS2_test_dtpredcomb %>% select(DcStat, Predicted, everything())
+```
+
+
+
+### Model Evaluation
+
+using test dataset
+
+```{r}
+dteval_res <- confusionMatrix(burnDS2_test_dtpredcomb$Predicted, burnDS2_test_dtpredcomb$DcStat, positive = "Death")
+dteval_res
+```
+
+
