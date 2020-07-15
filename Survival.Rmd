@@ -163,7 +163,7 @@ pdcds1 %>% filter(CxDur != 365) %>% descr(CxDur, stats = c("min", "max"))
 there are 1 to 7 samples developed complication per day. 
 
 ```{r}
-cxdurdt <- pdcds1 %>% group_by(CxDur) %>% count(CxDur)
+cxdurdt <- pdcds1 %>% group_by(CxDur) %>% dplyr::count(CxDur)
 
 ggplot(cxdurdt, aes(x=CxDur, y=n)) +
   geom_point() + geom_line() +
@@ -187,7 +187,7 @@ pdcds1 %>% filter(RemovalDur != 365) %>% descr(RemovalDur, stats = c("min", "max
 there are 1 to 5 catheter removed per day
 
 ```{r}
-removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% count(RemovalDur)
+removaldurdt <- pdcds1 %>% group_by(RemovalDur) %>% dplyr::count(RemovalDur)
 
 ggplot(removaldurdt, aes(x=RemovalDur, y=n)) +
   geom_point() + geom_line() +
@@ -304,6 +304,8 @@ cxsurvweimod_res
 ```
 
 when adjusted to gender, age and diabetes status, there was no significant association between method and time-to-event of catheter complication, with time ratio (TR) of peritonesocopy method (as compare to percutaneous method) to develop catheter complication was `r round(cxsurvweimod_res$ETR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$ETR, 2)[4,2:3]`). 
+
+`r 2+1`
 
 the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to develop catheter was `r round(cxsurvweimod_res$HR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$HR, 2)[4,2:3]`) times higher, when adjusted to gender, age and diabetes status.
 
