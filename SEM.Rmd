@@ -1,0 +1,105 @@
+---
+title: "Assignment - Structural Equation Modelling"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+
+# Motivation
+
+https://doi.org/10.1371/journal.pone.0230644
+
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(haven, tidyverse)  
+       
+```
+
+## Dataset & Data Exploration
+
+Data was saved in SPSS save file, imported to R
+
+```{r}
+dbmds <- read_sav("pone.0230644.s002.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
+dbmds
+```
+
+
+# Analysis & Result
+
+## Descriptive
+
+### Sociodemographic
+
+Descriptive analysis was done on sociodemographic data, was shown below. 
+
+```{r, results='asis'}
+#demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
+#                                 "Female" = ~ n_perc0(.data$Gender == "Female")),
+#                 "Age (years)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
+#                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$Race == "Malay"),
+#                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")),
+#                 "comorbidities (status)" = list("Yes" = ~ n_perc0(.data$CM == "Yes"),
+#                                               "No" = ~ n_perc0(.data$CM == "No")),
+#                 "DM (status)" = list("Yes" = ~ n_perc0(.data$CMDM == "DM"),
+#                                      "No" = ~ n_perc0(.data$CMDM == "No")),
+#                 "Hypertension (status)" = list("Yes" = ~ n_perc0(.data$CMHPT == "HPT"),
+#                                                "No" = ~ n_perc0(.data$CMHPT == "No")),
+#                 "Ischaemic Heart Disease (status)" = list("Yes" = ~ n_perc0(.data$CMIHD == "IHD"),
+#                                                           "No" = ~ n_perc0(.data$CMIHD == "No")))
+#print(summary_table(pdcds1, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
+```
+
+
+### Score - Outcomes
+
+out of all the samples, more than half of them underwent percutaneous method, with half of them develop complication (mean complication time = 107 days) and eventually 46% of all catheter require removal (mean removal time = 117 days).
+
+```{r, results='asis'}
+
+```
+
+
+## Structural Equation Model
+
+
+# Discussion
+
+
+
+# Conclusion
+
+# Reference
+
+
+# Additional Info
+
+```{r}
+
+```
+
+
+
+
+```{r}
+sessionInfo()
+```
+

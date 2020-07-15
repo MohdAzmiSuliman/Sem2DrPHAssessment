@@ -30,7 +30,7 @@ Note: Data was generated (Refer [Dataset](#dataset-data-exploration))
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, broom, summarytools, surveytoolbox, knitr)
+p_load(tidyverse, haven, DT, broom, summarytools, surveytoolbox, knitr, blandr)
 ```
 
 ## Dataset & Data Exploration
