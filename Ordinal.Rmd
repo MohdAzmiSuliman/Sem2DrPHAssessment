@@ -29,18 +29,12 @@ In this example, the researcher
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, ordinal)
+p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, ordinal, caret, VGAM, LogisticDx)
 ```
 
 ## Dataset & Data Exploration
 
-In this data, there are 5 variables
 
-1. id : ID for each district
-2. ppka : PPKA status - presence of PPKA in the district (0 - no PPKA, 1 - PPKA present)
-3. popnum : Number of population in the district - per 10,000 population
-4. total : total disease notification received
-5. delaynum : number of delayed notification received
 
 ```{r}
 ordds <-  read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
@@ -52,7 +46,6 @@ ordds
 
 ## Descriptive
 
-From 94 district, 60% of them have PPKA
 
 ```{r, results="asis"}
 freq(ordds)
@@ -87,29 +80,91 @@ ggplot(ordds, aes(DxMonthCode, fill = DxMonthCode)) +
 ```
 
 
+## Multinomial Logistic Regression
+
+### Univariable
+
+```{r}
+levels(ordds$NotiDurCode)
+mulnomds <- ordds %>% mutate(NotiDurCode2 = fct_relevel(NotiDurCode, levels = c("Late", "Expected", "Early")))
+levels(mulnomds$NotiDurCode2)
+
+mulnomlr_dis <- vglm(NotiDurCode2 ~ Disease, data=mulnomds, family = "multinomial")
+summary(mulnomlr_dis)
+```
+
+### Multivariable
+
+```{r}
+mulnommlr <- vglm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomds, family = "multinomial")
+summary(mulnommlr)
+```
+
+### Model Checking
+
+Logit 1 - Early vs Late
+
+```{r}
+levels(ordds$NotiDurCode)
+mulnomlog1ds <- ordds %>% filter(NotiDurCode == c("Early", "Late"))
+
+logreglog1 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog1ds, family = "binomial")
+logreglog1aug <- augment(logreglog1, type.predict = "response", type.residual = "response") %>%
+  mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
+                       labels = c("Early", "Late")))
+descr(logreglog1aug$.fitted)
+confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")
+gof_logreglog1 <- gof(logreglog1, plotROC = T, g=12)
+```
+
+for model 1, accuracy was `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
 
 ## Ordinal Logistic Regression
 
 ### Univariable
 
 ```{r}
-ordlr_dis <- clm(NotiDurCode ~ Disease, data=ordds)
+ordlr_dis <- clm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=ordds)
 summary(ordlr_dis)
 tidy(ordlr_dis, exponentiate = T, conf.int = T)
 ```
+
 
 
 2. The odd of Measles being in expected or above is `r round(exp(coef(ordlr_dis)[3]), 2)` higher  `r round(exp(confint(ordlr_dis)[1,]), 2)`  (95% CI: 1.10, 1.46, p = 0.001) than a normal BMI.
 
 ### Multivariable
 
-### Prediction
+```{r}
+ordmlr <- clm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=ordds)
+summary(ordmlr)
+tidy(ordmlr, exponentiate = T, conf.int = T)
+```
+
+
+### Model Fitness
+
+```{r}
+ordmlr_predds <- augment(ordmlr, type.predict = "class")
+```
+
+```{r}
+confusionMatrix(ordmlr_predds$.fitted, ordmlr_predds$NotiDurCode)
+```
+
+
+### Assumption
+
+```{r}
+nominal_test(ordmlr)
+```
+
+###
 
 
 # Discussion
 
-- Present of PPKA reduce the rate / count of delayed notification
-- Why poisson rate
+
 
 # Conclusion
 

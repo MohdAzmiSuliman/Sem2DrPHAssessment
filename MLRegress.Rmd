@@ -30,12 +30,17 @@ choice
 
 ```{r}
 library(pacman)
-p_load(haven, tidyverse, knitr, broom, rpart, rpart.plot)
+p_load(haven, tidyverse, knitr, broom, rpart, rpart.plot, Metrics, neuralnet)
+set.seed(119)
 ```
 
+# Analysis
+
+## Linear Regression
 
 ```{r}
 mlregds <- read_sav("mlregds.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
+mlregds0 <- read_sav("mlregds.sav")
 
 mlregds
 ```
@@ -57,6 +62,8 @@ summary(lr)
 rmse(test$Total_DS, predict(lr,test))
 ```
 
+## Decisional Tree
+
 ```{r}
 ds_dtmod <- rpart(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = train, method = "anova")
 rpart.plot(ds_dtmod)
@@ -70,4 +77,27 @@ ggplot(test, aes(x= Total_DS, y = predict(ds_dtmod,test))) + geom_point() + geom
 
 ggplot(train, aes(resid(ds_dtmod))) + geom_histogram()
 ```
+
+## Neural Network
+
+```{r}
+max <- apply(mlregds0, 2, max)
+min <- apply(mlregds0, 2, min)
+mlregds_scaled <- as.data.frame(scale(mlregds0, center = min, scale = max - min))
+
+train0 <- mlregds_scaled[sRow,]
+test0 <- mlregds_scaled[-sRow,]
+```
+
+```{r}
+mlregnn <- neuralnet(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = train0, hidden = 3, linear.output = T)
+plot(mlregnn)
+```
+
+```{r}
+rmse(test0$Total_DS, predict(mlregnn,test0))
+
+```
+
+
 
