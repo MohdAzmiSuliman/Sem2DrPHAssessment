@@ -96,7 +96,7 @@ summary(mulnomlr_dis)
 ### Multivariable
 
 ```{r}
-mulnommlr <- vglm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomds, family = "multinomial")
+mulnommlr <- vglm(NotiDurCode2 ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomds, family = "multinomial")
 summary(mulnommlr)
 ```
 
@@ -119,12 +119,30 @@ gof_logreglog1 <- gof(logreglog1, plotROC = T, g=12)
 
 for model 1, accuracy was `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
 
+Logit 1 - Expected vs Late
+
+```{r}
+levels(ordds$NotiDurCode)
+mulnomlog2ds <- ordds %>% filter(NotiDurCode == c("Expected", "Late"))
+
+logreglog2 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog2ds, family = "binomial")
+logreglog2aug <- augment(logreglog2, type.predict = "response", type.residual = "response") %>%
+  mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
+                       labels = c("Expected", "Late")))
+descr(logreglog2aug$.fitted)
+confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")
+gof_logreglog2 <- gof(logreglog2, plotROC = T, g=13)
+```
+
+for model 2, accuracy was `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
+
+
 ## Ordinal Logistic Regression
 
 ### Univariable
 
 ```{r}
-ordlr_dis <- clm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=ordds)
+ordlr_dis <- clm(NotiDurCode ~ Disease, data=ordds)
 summary(ordlr_dis)
 tidy(ordlr_dis, exponentiate = T, conf.int = T)
 ```
@@ -164,7 +182,8 @@ nominal_test(ordmlr)
 
 # Discussion
 
-
+- model checking
+- big data, expected significant finding - look at the magnitude
 
 # Conclusion
 
