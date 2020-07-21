@@ -1,0 +1,80 @@
+---
+title: "Assignment - Linear Mixed Effect"
+author: "Dr Mohd Azmi P-UD 0079/19"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: false
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F)
+options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+```
+
+# Motivation
+
+Delayed notification will delay public health action.
+
+In this example, the researcher 
+
+
+# Environment
+
+## Packages
+
+```{r}
+library(pacman) # package manager, elegant way to load packages
+p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, lme4)
+```
+
+## Dataset & Data Exploration
+
+
+
+```{r}
+lmeds <-  read_sav("mlm_perakndr.sav") %>%
+  mutate_if(is.labelled, ~(as_factor(.))) %>%
+  na.omit() %>%
+  mutate(wt10 = Weight/10, htm = Height/100)
+lmeds
+```
+
+
+
+# Analysis
+
+## Linear Regression
+
+```{r}
+lrmod <- lm(HbA1c ~ EthCode + FastingBloodGlucose + wt10 + DMDur + TotalCholesterol, lmeds)
+summary(lrmod)
+```
+
+
+## Linear Mixed Effect
+
+
+```{r}
+lmemod <- lmer(HbA1c ~ EthCode + FastingBloodGlucose + wt10 + DMDur + TotalCholesterol + (1 | Daerah_ID), lmeds, REML = F)
+summary(lmemod)
+```
+
+# Discussion
+
+# Conclusion
+
+# Reference
+
+
+# Additional Info
+
+Session Info
+
+```{r}
+sessionInfo()
+```
