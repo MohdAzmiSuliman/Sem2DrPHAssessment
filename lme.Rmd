@@ -29,7 +29,7 @@ In this example, the researcher
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, lme4)
+p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, lme4, merTools)
 ```
 
 ## Dataset & Data Exploration
@@ -40,8 +40,12 @@ p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, lme4)
 lmeds <-  read_sav("mlm_perakndr.sav") %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
   na.omit() %>%
-  mutate(wt10 = Weight/10, htm = Height/100)
+  mutate(wt10 = Weight/10, htm = Height/100, dmdur5 = DMDur/5)
 lmeds
+```
+
+```{r}
+lmeds %>% group_by(Daerah_ID) %>% summarise(meanhba1c = mean(fbsa), n = n())
 ```
 
 
@@ -51,18 +55,100 @@ lmeds
 ## Linear Regression
 
 ```{r}
-lrmod <- lm(HbA1c ~ EthCode + FastingBloodGlucose + wt10 + DMDur + TotalCholesterol, lmeds)
+lrmod <- lm(hbaa ~ EthCode + fbsa + wt10 + dmdur5, lmeds)
 summary(lrmod)
 ```
 
 
 ## Linear Mixed Effect
 
+### Null Model
 
 ```{r}
-lmemod <- lmer(HbA1c ~ EthCode + FastingBloodGlucose + wt10 + DMDur + TotalCholesterol + (1 | Daerah_ID), lmeds, REML = F)
-summary(lmemod)
+lmemodnull <- lmer(hbaa ~ 1 + (1 | Daerah_ID), data = lmeds, REML = F)
+summary(lmemodnull)
 ```
+
+
+### RI Model
+
+```{r}
+lmemodRI <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 | Daerah_ID), data = lmeds, REML = F)
+summary(lmemodRI)
+```
+
+### RI Plot
+
+```{r}
+lmemodRI_aug <- augment(lmemodRI)
+ggplot(lmemodRI_aug, aes(x = fbsa, y = .fitted, group = Daerah_ID, colour = Daerah_ID)) + geom_point() + geom_line()
+```
+
+
+### RS
+
+```{r}
+lmemodRS <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 + fbsa | Daerah_ID), lmeds, control = lmerControl(optimizer = "bobyqa"), REML = F)
+summary(lmemodRS)
+```
+
+### RS Plot
+
+```{r}
+lmemodRS_ranef <- ranef(lmemodRS, condVar = T)$Daerah_ID %>% mutate(intercept = `(Intercept)`, slope = fbsa)
+ggplot(lmemodRS_ranef, aes(x = intercept, y = slope)) + geom_point() + geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+lattice::dotplot(ranef(lmemodRS, condVar = T))
+```
+
+```{r}
+lmemodRS_resim <- REsim(lmemodRS)
+lmemodRS_resim %>%
+  filter(term == "(Intercept)") %>%
+  ggplot(aes(x = reorder(groupID, median), y = median, ymin = median - 1.96*sd, ymax = median + 1.96*sd)) +
+  geom_pointrange() + coord_flip() + ylab("(Intercept)") + xlab("Daerah")
+lmemodRS_resim %>%
+  filter(term == "fbsa") %>%
+  ggplot(aes(x = reorder(groupID, median), y = median, ymin = median - 1.96*sd, ymax = median + 1.96*sd)) +
+  geom_pointrange() + coord_flip()+ ylab("fbsa") + xlab("Daerah")
+```
+
+
+
+### Variance
+
+Between Daerah variance for
+
+1. Null Model = `r round(as.data.frame(VarCorr(lmemodnull))[1,4],4)`
+2. RI Model = `r round(as.data.frame(VarCorr(lmemodRI))[1,4],4)`
+3. RS Model = `r round(as.data.frame(VarCorr(lmemodRS))[1,4],4)`
+
+Within School variance for
+
+1. Null Model = `r round(as.data.frame(VarCorr(lmemodnull))[2,4],4)`
+2. RI Model = `r round(as.data.frame(VarCorr(lmemodRI))[2,4],4)`
+3. RS Model = `r round(as.data.frame(VarCorr(lmemodRS))[4,4],4)`
+
+In RI model, proportion of unexplained variance due to differences between Daerah is `r (as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100`%
+
+In RS model, proportion of unexplained variance due to differences between Daerah is `r (as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100`%
+
+
+```{r}
+lmemodnull
+```
+
+
+```{r}
+anova(lmemodRI, lmemodRS)
+```
+
+## Model Fitness
+
+```{r}
+augment(lmemodRS) %>%
+  ggplot(aes(x=.fitted, y=.resid)) + geom_point()
+```
+
 
 # Discussion
 
