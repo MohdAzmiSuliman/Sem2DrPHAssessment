@@ -4,7 +4,7 @@ author: "Dr Mohd Azmi P-UD 0079/19"
 date: '`r format(Sys.Date(), "%d %B, %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -14,39 +14,101 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F)
 options(qwraps2_markup = "markdown", knitr.kable.NA = '')
+getOption("qwraps2_frmt_digits", 2)
 ```
 
 # Motivation
 
-Delayed notification will delay public health action.
+Diabetes control important to delay the complication of diabetes. In Malaysia, HbA1c have been used as one of parameter to monitor the diabetes control. In Malaysia, National Diabetes Registry (NDR) have been develop to monitor diabetes control among Malaysians population.
 
-In this example, the researcher 
+In typical linear regression, researcher would like to see the effect (or relationship) of predictors and outcome. However, in some situation, the sample had several levels in hierarchical forms. For example, researcher might want to see the relationship between venous fasting blood sugar (fbs) and HbA1c level on diabetic patient. Typically, the researcher can sample several diabetic patients and measure their fbs and HbA1c. However, these patient might have group effect, where they might have difference variance depending on their group. Patients in location A might have different value of relationship between fbs and hba1c, comparing with patients in location B. Multilevel model allow researcher to measure these multilevel variance. 
+
+For this report, the data taken from NDR Perak, which consist of these data
+
+1. district of the patient
+2. patient current age
+3. Ethnicity
+4. Duration of diagnosed with Diabetes Mellitus
+5. Patient's body weight in kilogram
+6. Fasting Blood Sugar level (fbs)
+7. HbA1c level
+
+The research would like to see the relationship between fbs and HbA1c level. the researcher expected that the variance will be different for each district, thus multilevel model was used to estimate the relationship.
 
 
-# Environment
+# Analysis
 
 ## Packages
 
+These are the R's packages that used in this report.
+
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, lme4, merTools)
+p_load(knitr, tidyverse, haven, summarytools, qwraps2, scales, lme4, broom, merTools)
 ```
 
 ## Dataset & Data Exploration
 
+Due to very small estimate, data transformation need to be done for variable weight and the duration of dm. Weight were measure in per 10kg unit while the duration is in per 5 years of duration.
 
+below is the dataset.
 
 ```{r}
 lmeds <-  read_sav("mlm_perakndr.sav") %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
   na.omit() %>%
-  mutate(wt10 = Weight/10, htm = Height/100, dmdur5 = DMDur/5)
+  mutate(wt10 = Weight/10, dmdur5 = DMDur/5)
 lmeds
 ```
 
-```{r}
-lmeds %>% group_by(Daerah_ID) %>% summarise(meanhba1c = mean(fbsa), n = n())
+Data exploration done to ensure no missing data nor data error.
+
+```{r, eval = F}
+descr(lmeds)
+freq(lmeds)
 ```
+
+The demographic and distribution of the data were summarised using following code
+
+```{r, eval = F, results='asis'}
+demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "Bagan Datuk"),
+                                 "Batak Rabit" = ~ n_perc0(.data$Daerah_ID == "Batak Rabit"),
+                                 "Changkat Jong" = ~ n_perc0(.data$Daerah_ID == "Changkat Jong"),
+                                 "Chikus" = ~ n_perc0(.data$Daerah_ID == "Chikus"),
+                                 "Degong" = ~ n_perc0(.data$Daerah_ID == "Degong"),
+                                 "Durian Sebatang" = ~ n_perc0(.data$Daerah_ID == "Durian Sebatang"),
+                                 "Selama" = ~ n_perc0(.data$Daerah_ID == "Selama"),
+                                 "Jenderata" = ~ n_perc0(.data$Daerah_ID == "Jenderata"),
+                                 "Langkap" = ~ n_perc0(.data$Daerah_ID == "Langkap"),
+                                 "Selekoh" = ~ n_perc0(.data$Daerah_ID == "Selekoh"),
+                                 "Simpang Empat" = ~ n_perc0(.data$Daerah_ID == "Simpang Empat"),
+                                 "Rungkup" = ~ n_perc0(.data$Daerah_ID == "Rungkup"),
+                                 "Larut" = ~ n_perc0(.data$Daerah_ID == "Larut"),
+                                 "Teluk Intan" = ~ n_perc0(.data$Daerah_ID == "Teluk Intan"),
+                                 "Kampar" = ~ n_perc0(.data$Daerah_ID == "Kampar"),
+                                 "Gopeng" = ~ n_perc0(.data$Daerah_ID == "Gopeng"),
+                                 "Malim Nawar" = ~ n_perc0(.data$Daerah_ID == "Malim Nawar"),
+                                 "Kerian" = ~ n_perc0(.data$Daerah_ID == "Kerian"),
+                                 "Kinta" = ~ n_perc0(.data$Daerah_ID == "Kinta")),
+                 "Age (year)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
+                 "Gender" = list("Female" = ~ n_perc0(.data$GenCode == "Female"),
+                                 "Male" = ~ n_perc0(.data$GenCode == "Male")),
+                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$EthCode == "Malay"),
+                                    "Chinese" = ~ n_perc0(.data$EthCode == "Chinese"),
+                                    "Indian" = ~ n_perc0(.data$EthCode == "Indian"),
+                                    "Other" = ~ n_perc0(.data$EthCode == "Other")),
+                 "Duration of DM (years)" = list("Mean (SD)" = ~ mean_sd(.data$DMDur, denote_sd = "paren")),
+                 "Height" = list("Mean (SD)" = ~ mean_sd(.data$Height, denote_sd = "paren")),
+                 "Weight" = list("Mean (SD)" = ~ mean_sd(.data$Weight, denote_sd = "paren")),
+                 "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
+                 "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
+
+print(summary_table(lmeds, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
+
+lmeds %>% group_by(Daerah_ID) %>% summarise(`HbA1c Mean` = mean(hbaa), n = n())
+```
+
+
 
 
 
@@ -147,6 +209,52 @@ anova(lmemodRI, lmemodRS)
 ```{r}
 augment(lmemodRS) %>%
   ggplot(aes(x=.fitted, y=.resid)) + geom_point()
+```
+
+# Result
+
+Below are the summary of the data
+
+```{r, echo = F, results='asis'}
+demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "Bagan Datuk"),
+                                 "Batak Rabit" = ~ n_perc0(.data$Daerah_ID == "Batak Rabit"),
+                                 "Changkat Jong" = ~ n_perc0(.data$Daerah_ID == "Changkat Jong"),
+                                 "Chikus" = ~ n_perc0(.data$Daerah_ID == "Chikus"),
+                                 "Degong" = ~ n_perc0(.data$Daerah_ID == "Degong"),
+                                 "Durian Sebatang" = ~ n_perc0(.data$Daerah_ID == "Durian Sebatang"),
+                                 "Selama" = ~ n_perc0(.data$Daerah_ID == "Selama"),
+                                 "Jenderata" = ~ n_perc0(.data$Daerah_ID == "Jenderata"),
+                                 "Langkap" = ~ n_perc0(.data$Daerah_ID == "Langkap"),
+                                 "Selekoh" = ~ n_perc0(.data$Daerah_ID == "Selekoh"),
+                                 "Simpang Empat" = ~ n_perc0(.data$Daerah_ID == "Simpang Empat"),
+                                 "Rungkup" = ~ n_perc0(.data$Daerah_ID == "Rungkup"),
+                                 "Larut" = ~ n_perc0(.data$Daerah_ID == "Larut"),
+                                 "Teluk Intan" = ~ n_perc0(.data$Daerah_ID == "Teluk Intan"),
+                                 "Kampar" = ~ n_perc0(.data$Daerah_ID == "Kampar"),
+                                 "Gopeng" = ~ n_perc0(.data$Daerah_ID == "Gopeng"),
+                                 "Malim Nawar" = ~ n_perc0(.data$Daerah_ID == "Malim Nawar"),
+                                 "Kerian" = ~ n_perc0(.data$Daerah_ID == "Kerian"),
+                                 "Kinta" = ~ n_perc0(.data$Daerah_ID == "Kinta")),
+                 "Age (year)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
+                 "Gender" = list("Female" = ~ n_perc0(.data$GenCode == "Female"),
+                                 "Male" = ~ n_perc0(.data$GenCode == "Male")),
+                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$EthCode == "Malay"),
+                                    "Chinese" = ~ n_perc0(.data$EthCode == "Chinese"),
+                                    "Indian" = ~ n_perc0(.data$EthCode == "Indian"),
+                                    "Other" = ~ n_perc0(.data$EthCode == "Other")),
+                 "Duration of DM (years)" = list("Mean (SD)" = ~ mean_sd(.data$DMDur, denote_sd = "paren")),
+                 "Height" = list("Mean (SD)" = ~ mean_sd(.data$Height, denote_sd = "paren")),
+                 "Weight" = list("Mean (SD)" = ~ mean_sd(.data$Weight, denote_sd = "paren")),
+                 "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
+                 "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
+
+print(summary_table(lmeds, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
+```
+
+Mean HbA1c for each district are as below
+
+```{r, echo=F}
+lmeds %>% group_by(Daerah_ID) %>% summarise(`No. of Patients` = n(), `HbA1c Mean` = mean(hbaa))
 ```
 
 
