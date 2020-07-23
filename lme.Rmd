@@ -19,21 +19,21 @@ getOption("qwraps2_frmt_digits", 2)
 
 # Motivation
 
-Diabetes control important to delay the complication of diabetes. In Malaysia, HbA1c have been used as one of parameter to monitor the diabetes control. In Malaysia, National Diabetes Registry (NDR) have been develop to monitor diabetes control among Malaysians population.
+One major component in delaying complication of diabetes is to have good diabetes control. In Malaysia, HbA1c have been used as one of parameter to monitor the diabetes control. In Malaysia, National Diabetes Registry (NDR) have been develop to monitor diabetes control among Malaysians population.
 
-In typical linear regression, researcher would like to see the effect (or relationship) of predictors and outcome. However, in some situation, the sample had several levels in hierarchical forms. For example, researcher might want to see the relationship between venous fasting blood sugar (fbs) and HbA1c level on diabetic patient. Typically, the researcher can sample several diabetic patients and measure their fbs and HbA1c. However, these patient might have group effect, where they might have difference variance depending on their group. Patients in location A might have different value of relationship between fbs and hba1c, comparing with patients in location B. Multilevel model allow researcher to measure these multilevel variance. 
+In typical linear regression, researcher would like to see the effect (or relationship) of predictors and outcome. However, in some situation, the sample had some form of hierarchical structure, that may have clustering effect. For example, researcher might want to see the relationship between venous fasting blood sugar (fbs) and HbA1c level on diabetic patient. Typically, the researcher can sample several diabetic patients and measure their fbs and HbA1c. However, these patient might have group effect, where they might have difference variance depending on their group. Patients in location A might have different value of relationship between fbs and hba1c, comparing with patients in location B. Multilevel model allow researcher to measure these multilevel variance. 
 
 For this report, the data taken from NDR Perak, which consist of these data
 
-1. district of the patient
-2. patient current age
+1. 19 districts from Perak
+2. Patient's current age
 3. Ethnicity
 4. Duration of diagnosed with Diabetes Mellitus
 5. Patient's body weight in kilogram
 6. Fasting Blood Sugar level (fbs)
 7. HbA1c level
 
-The research would like to see the relationship between fbs and HbA1c level. the researcher expected that the variance will be different for each district, thus multilevel model was used to estimate the relationship.
+The researcher would like to see the relationship between fbs and HbA1c level. The researcher expected that the variance will be different for each district, thus multilevel model was used to estimate the relationship.
 
 
 # Analysis
@@ -51,7 +51,7 @@ p_load(knitr, tidyverse, haven, summarytools, qwraps2, scales, lme4, broom, merT
 
 Due to very small estimate, data transformation need to be done for variable weight and the duration of dm. Weight were measure in per 10kg unit while the duration is in per 5 years of duration.
 
-below is the dataset.
+Below was the dataset.
 
 ```{r}
 lmeds <-  read_sav("mlm_perakndr.sav") %>%
@@ -98,8 +98,8 @@ demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "B
                                     "Indian" = ~ n_perc0(.data$EthCode == "Indian"),
                                     "Other" = ~ n_perc0(.data$EthCode == "Other")),
                  "Duration of DM (years)" = list("Mean (SD)" = ~ mean_sd(.data$DMDur, denote_sd = "paren")),
-                 "Height" = list("Mean (SD)" = ~ mean_sd(.data$Height, denote_sd = "paren")),
-                 "Weight" = list("Mean (SD)" = ~ mean_sd(.data$Weight, denote_sd = "paren")),
+                 "Height (m)" = list("Mean (SD)" = ~ mean_sd(.data$Height/100, denote_sd = "paren")),
+                 "Weight (kg)" = list("Mean (SD)" = ~ mean_sd(.data$Weight, denote_sd = "paren")),
                  "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
                  "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
 
@@ -110,7 +110,6 @@ meanhbabydis<- lmeds %>% group_by(Daerah_ID) %>% summarise(n = n(), `HbA1c Mean`
 
 
 
-# Analysis
 
 ## Linear Regression
 
@@ -118,12 +117,16 @@ Analysis was started with typical linear regression, to estimate the regression 
 
 ```{r}
 lrmod <- lm(hbaa ~ EthCode + fbsa + wt10 + dmdur5, lmeds)
+lrmod_tidy <- tidy(lrmod, conf.int = T) %>%
+  mutate(`Adj. beta` = estimate) %>% 
+  dplyr::select(term, `Adj. beta`, conf.low, conf.high, p.value) %>%
+  mutate_if(is.numeric, round, 3)
 ```
 
 
 ## Linear Mixed Effect
 
-Since the researcher expected the variance between the districts will be varies, linear mixed model should be done to measure/adjust for the variance.
+Since the researcher expected the variance between the districts will be varies, linear mixed model should be done to measure for the variance (i.e. adjust the regression estimate for the district variance).
 
 ### Null Model
 
@@ -145,6 +148,7 @@ In Random Intercept model, the HbA1c was estimated by considering the effect of 
 
 ```{r}
 lmemodRI <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 | Daerah_ID), data = lmeds, REML = F)
+lmemodRI_tidy <- tidy(lmemodRI, conf.int = T) %>% filter(effect == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
 ```
 
 The variance between district and within can be measured.
@@ -160,6 +164,7 @@ Random slope model was done to check whether there are also effect of district v
 
 ```{r}
 lmemodRS <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 + fbsa | Daerah_ID), lmeds, control = lmerControl(optimizer = "bobyqa"), REML = F)
+lmemodRS_tidy <- tidy(lmemodRS, conf.int = T) %>% filter(effect == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
 ```
 
 The variance between district and within can be measured.
@@ -228,16 +233,29 @@ meanhbabydis
 ## Linear Regression
 
 ```{r}
-summary(lrmod)
+lrmod_tidy
 ```
+
+Linear regression show that for each increase of 1 unit of fasting blood sugar, the HbA1c increase by `r pull(lrmod_tidy[5,2])` (95% CI = `r pull(lrmod_tidy[5,3])`, `r pull(lrmod_tidy[5,4])`), when adjusted to ethnicity, weight and duration of DM. 
 
 ## Linear Mixed Model
 
 ### Null Model
 
+Null model estimate was shown below
+
 ```{r}
 summary(lmemodnull)
 ```
+
+The mean of HbA1c when adjusted to district variance was `r round(fixef(lmemodnull),2)`, which was a bit higher than average HbA1c regardless of the district effect (7.75 - refer demographic table)
+
+The mean of HbA1c for each district was shown below
+
+```{r}
+coef(lmemodnull)$Daerah_ID
+```
+
 
 The variance between district and within district for null model were as below
 
@@ -245,16 +263,35 @@ The variance between district and within district for null model were as below
 print(lmemodnull_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)`
-Within School variance: `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`.
 
 In null model, proportion of unexplained variance due to differences between Daerah is `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodnull))[1,4] / (as.data.frame(VarCorr(lmemodnull))[1,4] + as.data.frame(VarCorr(lmemodnull))[2,4]))*100,2)`%
 
 
 ### Random Intercept Model
 
+Random Intercept Model was shown below
+
 ```{r}
 summary(lmemodRI)
+```
+
+The estimate (fixed effect) for each variable for the random intercept model was shown below
+
+```{r}
+lmemodRI_tidy
+```
+
+The equation for the average fitted regression line (across school) is 
+
+HbA1c~i~~j~ = `r round(fixef(lmemodRI)[1],2)` + random intercept + 0x(Malay) + `r round(fixef(lmemodRI)[2],2)`x(Chinese) + `r round(fixef(lmemodRI)[3],2)`x(Indian) + `r round(fixef(lmemodRI)[4],2)`x(Other Ethnicity) + `r round(fixef(lmemodRI)[5],2)`x(Fasting Blood Sugar) + `r round(fixef(lmemodRI)[6],2)`x(Weight per 10kg) + `r round(fixef(lmemodRI)[7],2)`x(per 5 years of DM duration).
+
+Since this is random intercept model, the slope for each variable was fixed.
+
+The intercept for each district was shown below
+
+```{r}
+ranef(lmemodRI)
 ```
 
 The variance between district and within district were as below
@@ -263,17 +300,41 @@ The variance between district and within district were as below
 print(lmemodRI_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)`
-Within School variance: `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`.
 
-In RI model, proportion of unexplained variance due to differences between Daerah is `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100,2)`%
-
-
+In Random Intercept model, proportion of unexplained variance due to differences between Daerah was `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100,2)`%.
 
 ### Random Slope Model
 
+Random Slope Model was shown below
+
 ```{r}
 summary(lmemodRS)
+```
+
+The estimate (fixed effect) for each variable for the random slope model was shown below
+
+
+```{r}
+lmemodRS_tidy
+```
+
+The equation for the average fitted regression line (across school) is
+
+HbA1c~i~~j~ = `r round(fixef(lmemodRS)[1],2)` + random intercept + 0x(Malay) + `r round(fixef(lmemodRS)[2],2)`x(Chinese) + `r round(fixef(lmemodRS)[3],2)`x(Indian) + `r round(fixef(lmemodRS)[4],2)`x(Other Ethnicity) + (`r round(fixef(lmemodRS)[5],2)` + random slope)x(Fasting Blood Sugar) + `r round(fixef(lmemodRS)[2],2)`x(Weight per 10kg) + `r round(fixef(lmemodRS)[2],2)`x(per 5 years of DM duration).
+
+
+In this model, the intercept and the slope for fbs was varies between district, as shown below
+
+```{r}
+ranef(lmemodRS)
+```
+
+the random effect for each district can also be visualize by forest plot below
+
+```{r}
+lmemodRS_interceptplot
+lmemodRS_slopeplot
 ```
 
 The variance between district and within district were as below
@@ -282,17 +343,11 @@ The variance between district and within district were as below
 print(lmemodRS_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)`
-Within School variance: `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`.
 
-In RS model, proportion of unexplained variance due to differences between Daerah is`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`) =  `r round((as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100,2)`%
+In random slope model, proportion of unexplained variance due to differences between Daerah is`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`) =  `r round((as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100,2)`%.
 
-
-```{r}
-comp_RIRS
-```
-
-Comparison with LR test show that the random slope model was significant, and thus will be used as final model in this study.
+The correlation between intercept and slope was `r round(as.data.frame(VarCorr(lmemodRS))[3,5],2)`, indicate that the intercept and slope was covary.
 
 Random effect can be visualize as below.
 
@@ -302,11 +357,16 @@ lmemodRS_ranef_plot
 
 The scatter plot show that there are some district that have lower intercept (lower mean HbA1c), but higher effect of the slope (fasting blood sugar) - at the left upper of the plot, and conversely there are some district that have higher intercept (higer mean HbA1c), but lower effect of the slope (fasting blood sugar) - at the right lower of the plot.
 
+
+### Comparison between Random Intercept and Random Slope Model
+
+LR test between random intercept and random slope model was shown below.
+
 ```{r}
-lmemodRS_interceptplot
-lmemodRS_slopeplot
+comp_RIRS
 ```
 
+Comparison with LR test show that the random slope model was significant, and thus will be used as final model in this study.
 
 ### Model Assessment
 
@@ -315,11 +375,18 @@ Scatter plot between expected and residual was shown below
 ```{r}
 resid_plot
 ```
+
 The scatter plot show that the plot scattered uniformly scattered at residual = 0, indicating that the assumption of linearity and homoscedascity were met.
 
 # Discussion
 
+Several studies have shown that fasting blood sugar level affect HbA1c. Using HbA1c for diabetes control were preferable than fbs because HbA1c signify the sugar control for the past 3 months. HbA1c also didnt require patient to fast.
+
+Some of study have shown that there were difference of hba1c and other diabetes parameter across different geographic location. thus multilevel model may estimate the parameter better rather than typical linear regression. however due to technical difficulties (which include researcher not familiar with multilevel model), multilevel model was not widely use, despite there are advantages of the model, especially when suspecting clustering effect.
+
 # Conclusion
+
+While fbs, ethnicity, body weight and duration of dm may affect HbA1c level, different geographical location may have some variation, which require multilevel modelling for better estimation.
 
 # Reference
 
