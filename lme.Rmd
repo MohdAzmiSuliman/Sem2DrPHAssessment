@@ -70,7 +70,7 @@ freq(lmeds)
 
 The demographic and distribution of the data were summarised using following code
 
-```{r, eval = F, results='asis'}
+```{r}
 demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "Bagan Datuk"),
                                  "Batak Rabit" = ~ n_perc0(.data$Daerah_ID == "Batak Rabit"),
                                  "Changkat Jong" = ~ n_perc0(.data$Daerah_ID == "Changkat Jong"),
@@ -103,9 +103,7 @@ demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "B
                  "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
                  "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
 
-print(summary_table(lmeds, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
-
-lmeds %>% group_by(Daerah_ID) %>% summarise(`HbA1c Mean` = mean(hbaa), n = n())
+meanhbabydis<- lmeds %>% group_by(Daerah_ID) %>% summarise(n = n(), `HbA1c Mean` = mean(hbaa))
 ```
 
 
@@ -116,147 +114,208 @@ lmeds %>% group_by(Daerah_ID) %>% summarise(`HbA1c Mean` = mean(hbaa), n = n())
 
 ## Linear Regression
 
+Analysis was started with typical linear regression, to estimate the regression parameter between ethnicity, fasting blood sugar level, weight (in 10kg unit) and duration of DM (in 5 years unit), regardless of the variances at district level.
+
 ```{r}
 lrmod <- lm(hbaa ~ EthCode + fbsa + wt10 + dmdur5, lmeds)
-summary(lrmod)
 ```
 
 
 ## Linear Mixed Effect
 
+Since the researcher expected the variance between the districts will be varies, linear mixed model should be done to measure/adjust for the variance.
+
 ### Null Model
+
+Null model was measured as baseline for comparison with linear mixed models with random intercept and random slopes. In null model, the mean of HbA1c will be estimated, regardless of the covariates, with consideration of district level variance.
 
 ```{r}
 lmemodnull <- lmer(hbaa ~ 1 + (1 | Daerah_ID), data = lmeds, REML = F)
-summary(lmemodnull)
 ```
 
+The variance between district and within can be measured.
 
-### RI Model
+```{r}
+lmemodnull_var <- VarCorr(lmemodnull)
+```
+
+### Random Intercept Model
+
+In Random Intercept model, the HbA1c was estimated by considering the effect of covariates (in this model include ethnicity, fasting blood sugar level, weight in 10kg unit and duration of DM in 5 year unit), and district level variance.
 
 ```{r}
 lmemodRI <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 | Daerah_ID), data = lmeds, REML = F)
-summary(lmemodRI)
 ```
 
-### RI Plot
+The variance between district and within can be measured.
 
 ```{r}
-lmemodRI_aug <- augment(lmemodRI)
-ggplot(lmemodRI_aug, aes(x = fbsa, y = .fitted, group = Daerah_ID, colour = Daerah_ID)) + geom_point() + geom_line()
+lmemodRI_var <- VarCorr(lmemodRI)
 ```
 
 
-### RS
+### Random Slope Model
+
+Random slope model was done to check whether there are also effect of district variance in the covariate. In this study, the researcher wanted to know does fasting blood sugar level had different effect by different district.
 
 ```{r}
 lmemodRS <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 + fbsa | Daerah_ID), lmeds, control = lmerControl(optimizer = "bobyqa"), REML = F)
-summary(lmemodRS)
 ```
 
-### RS Plot
+The variance between district and within can be measured.
+
+```{r}
+lmemodRS_var <- VarCorr(lmemodRS)
+```
+
+Comparison between Random Slope Model and Random Intercept was done with likelihood ratio test (LR Test)
+
+```{r}
+comp_RIRS <- anova(lmemodRI, lmemodRS)
+```
+
+Scatter plot will be use to visualize the effect of random slope
 
 ```{r}
 lmemodRS_ranef <- ranef(lmemodRS, condVar = T)$Daerah_ID %>% mutate(intercept = `(Intercept)`, slope = fbsa)
-ggplot(lmemodRS_ranef, aes(x = intercept, y = slope)) + geom_point() + geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
-lattice::dotplot(ranef(lmemodRS, condVar = T))
+lmemodRS_ranef_plot <- ggplot(lmemodRS_ranef, aes(x = intercept, y = slope)) + geom_point() + geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+
 ```
+
+Random slope can also be visualize with forest plot.
 
 ```{r}
 lmemodRS_resim <- REsim(lmemodRS)
-lmemodRS_resim %>%
+lmemodRS_interceptplot <- lmemodRS_resim %>%
   filter(term == "(Intercept)") %>%
   ggplot(aes(x = reorder(groupID, median), y = median, ymin = median - 1.96*sd, ymax = median + 1.96*sd)) +
   geom_pointrange() + coord_flip() + ylab("(Intercept)") + xlab("Daerah")
-lmemodRS_resim %>%
+lmemodRS_slopeplot <-lmemodRS_resim %>%
   filter(term == "fbsa") %>%
   ggplot(aes(x = reorder(groupID, median), y = median, ymin = median - 1.96*sd, ymax = median + 1.96*sd)) +
-  geom_pointrange() + coord_flip()+ ylab("fbsa") + xlab("Daerah")
+  geom_pointrange() + coord_flip()+ ylab("Slope") + xlab("Daerah")
 ```
 
 
+### Model Fitness
 
-### Variance
-
-Between Daerah variance for
-
-1. Null Model = `r round(as.data.frame(VarCorr(lmemodnull))[1,4],4)`
-2. RI Model = `r round(as.data.frame(VarCorr(lmemodRI))[1,4],4)`
-3. RS Model = `r round(as.data.frame(VarCorr(lmemodRS))[1,4],4)`
-
-Within School variance for
-
-1. Null Model = `r round(as.data.frame(VarCorr(lmemodnull))[2,4],4)`
-2. RI Model = `r round(as.data.frame(VarCorr(lmemodRI))[2,4],4)`
-3. RS Model = `r round(as.data.frame(VarCorr(lmemodRS))[4,4],4)`
-
-In RI model, proportion of unexplained variance due to differences between Daerah is `r (as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100`%
-
-In RS model, proportion of unexplained variance due to differences between Daerah is `r (as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100`%
-
+Scatterplot was constructed between expected and residual HbA1C. This was to visualized the linearity and homoscedascity of the residual.
 
 ```{r}
-lmemodnull
-```
-
-
-```{r}
-anova(lmemodRI, lmemodRS)
-```
-
-## Model Fitness
-
-```{r}
-augment(lmemodRS) %>%
-  ggplot(aes(x=.fitted, y=.resid)) + geom_point()
+resid_plot <- augment(lmemodRS) %>%
+  ggplot(aes(x=.fitted, y=.resid, colour = Daerah_ID)) +
+  geom_point() +
+  geom_hline(yintercept = c(-5,0,5), linetype = 2) +
+  xlab("Expected HbA1c") + ylab("Residual")
 ```
 
 # Result
 
+## Demographic
+
 Below are the summary of the data
 
-```{r, echo = F, results='asis'}
-demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "Bagan Datuk"),
-                                 "Batak Rabit" = ~ n_perc0(.data$Daerah_ID == "Batak Rabit"),
-                                 "Changkat Jong" = ~ n_perc0(.data$Daerah_ID == "Changkat Jong"),
-                                 "Chikus" = ~ n_perc0(.data$Daerah_ID == "Chikus"),
-                                 "Degong" = ~ n_perc0(.data$Daerah_ID == "Degong"),
-                                 "Durian Sebatang" = ~ n_perc0(.data$Daerah_ID == "Durian Sebatang"),
-                                 "Selama" = ~ n_perc0(.data$Daerah_ID == "Selama"),
-                                 "Jenderata" = ~ n_perc0(.data$Daerah_ID == "Jenderata"),
-                                 "Langkap" = ~ n_perc0(.data$Daerah_ID == "Langkap"),
-                                 "Selekoh" = ~ n_perc0(.data$Daerah_ID == "Selekoh"),
-                                 "Simpang Empat" = ~ n_perc0(.data$Daerah_ID == "Simpang Empat"),
-                                 "Rungkup" = ~ n_perc0(.data$Daerah_ID == "Rungkup"),
-                                 "Larut" = ~ n_perc0(.data$Daerah_ID == "Larut"),
-                                 "Teluk Intan" = ~ n_perc0(.data$Daerah_ID == "Teluk Intan"),
-                                 "Kampar" = ~ n_perc0(.data$Daerah_ID == "Kampar"),
-                                 "Gopeng" = ~ n_perc0(.data$Daerah_ID == "Gopeng"),
-                                 "Malim Nawar" = ~ n_perc0(.data$Daerah_ID == "Malim Nawar"),
-                                 "Kerian" = ~ n_perc0(.data$Daerah_ID == "Kerian"),
-                                 "Kinta" = ~ n_perc0(.data$Daerah_ID == "Kinta")),
-                 "Age (year)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
-                 "Gender" = list("Female" = ~ n_perc0(.data$GenCode == "Female"),
-                                 "Male" = ~ n_perc0(.data$GenCode == "Male")),
-                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$EthCode == "Malay"),
-                                    "Chinese" = ~ n_perc0(.data$EthCode == "Chinese"),
-                                    "Indian" = ~ n_perc0(.data$EthCode == "Indian"),
-                                    "Other" = ~ n_perc0(.data$EthCode == "Other")),
-                 "Duration of DM (years)" = list("Mean (SD)" = ~ mean_sd(.data$DMDur, denote_sd = "paren")),
-                 "Height" = list("Mean (SD)" = ~ mean_sd(.data$Height, denote_sd = "paren")),
-                 "Weight" = list("Mean (SD)" = ~ mean_sd(.data$Weight, denote_sd = "paren")),
-                 "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
-                 "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
-
+```{r, results='asis'}
 print(summary_table(lmeds, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
 ```
 
 Mean HbA1c for each district are as below
 
-```{r, echo=F}
-lmeds %>% group_by(Daerah_ID) %>% summarise(`No. of Patients` = n(), `HbA1c Mean` = mean(hbaa))
+```{r}
+meanhbabydis
 ```
 
+## Linear Regression
+
+```{r}
+summary(lrmod)
+```
+
+## Linear Mixed Model
+
+### Null Model
+
+```{r}
+summary(lmemodnull)
+```
+
+The variance between district and within district for null model were as below
+
+```{r}
+print(lmemodnull_var, comp = "Variance", digits =2)
+```
+
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)`
+Within School variance: `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`
+
+In null model, proportion of unexplained variance due to differences between Daerah is `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodnull))[1,4] / (as.data.frame(VarCorr(lmemodnull))[1,4] + as.data.frame(VarCorr(lmemodnull))[2,4]))*100,2)`%
+
+
+### Random Intercept Model
+
+```{r}
+summary(lmemodRI)
+```
+
+The variance between district and within district were as below
+
+```{r}
+print(lmemodRI_var, comp = "Variance", digits =2)
+```
+
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)`
+Within School variance: `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`
+
+In RI model, proportion of unexplained variance due to differences between Daerah is `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100,2)`%
+
+
+
+### Random Slope Model
+
+```{r}
+summary(lmemodRS)
+```
+
+The variance between district and within district were as below
+
+```{r}
+print(lmemodRS_var, comp = "Variance", digits =2)
+```
+
+Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)`
+Within School variance: `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`
+
+In RS model, proportion of unexplained variance due to differences between Daerah is`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`) =  `r round((as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100,2)`%
+
+
+```{r}
+comp_RIRS
+```
+
+Comparison with LR test show that the random slope model was significant, and thus will be used as final model in this study.
+
+Random effect can be visualize as below.
+
+```{r}
+lmemodRS_ranef_plot
+```
+
+The scatter plot show that there are some district that have lower intercept (lower mean HbA1c), but higher effect of the slope (fasting blood sugar) - at the left upper of the plot, and conversely there are some district that have higher intercept (higer mean HbA1c), but lower effect of the slope (fasting blood sugar) - at the right lower of the plot.
+
+```{r}
+lmemodRS_interceptplot
+lmemodRS_slopeplot
+```
+
+
+### Model Assessment
+
+Scatter plot between expected and residual was shown below
+
+```{r}
+resid_plot
+```
+The scatter plot show that the plot scattered uniformly scattered at residual = 0, indicating that the assumption of linearity and homoscedascity were met.
 
 # Discussion
 
