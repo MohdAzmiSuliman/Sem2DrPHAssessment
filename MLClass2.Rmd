@@ -37,7 +37,7 @@ p_load(tidyverse, haven, rpart, summarytools, broom, caret, neuralnet, plyr, rpa
 
 ## Dataset & Data Exploration
 
-In this dataset, there are several variables
+In this dataset (the dataset was available in moodle/elearning), there are several variables
 
 1. DcStat: Status upon discharge (or last recorded status) - Alive (0), Death (1)
 2. Patient Age

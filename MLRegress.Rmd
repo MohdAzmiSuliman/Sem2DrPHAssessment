@@ -39,7 +39,7 @@ p_load(haven, tidyverse, knitr, broom, rpart, rpart.plot, Metrics, neuralnet, su
 
 ## Dataset and Data Exploration
 
-The dataset used in this report was shown as below
+The dataset (the dataset was available in moodle/elearning) used in this report was shown as below
 
 ```{r}
 mlregds0 <- read_sav("mlregds.sav") %>% na.omit()

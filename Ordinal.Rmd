@@ -41,7 +41,7 @@ p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, ordinal, caret,
 
 ## Dataset & Data Exploration
 
-The dataseet was shown as below
+The dataseet was shown as below (the dataset was available in moodle/elearning)
 
 ```{r}
 ordds <-  read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))

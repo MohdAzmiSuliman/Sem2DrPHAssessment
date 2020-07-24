@@ -56,7 +56,7 @@ p_load(haven, tidyverse, semTools, semPlot, summarytools, qwraps2, ggbeeswarm, b
 
 ## Dataset & Data Exploration
 
-Data was saved in SPSS save file, imported to R. Below are the dataset
+Data was saved in SPSS save file, imported to R (the dataset was available in moodle/elearning). Below are the dataset
 
 ```{r}
 stressds <- read_sav("SEMstress.sav") %>% mutate_if(is.labelled, ~(as_factor(.))) %>% na.omit()

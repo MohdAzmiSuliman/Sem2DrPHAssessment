@@ -51,7 +51,7 @@ p_load(haven, #import spss data
 
 ## Dataset & Data Exploration
 
-Data was saved in SPSS save file, imported to R
+Data (the dataset was available in moodle/elearning) was saved in SPSS save file, imported to R
 
 ```{r}
 pdcds0 <- read_sav("pdcsurvivalalter.sav")
