@@ -1,5 +1,5 @@
 ---
-title: "Assignment - Parametric Survival Analysis (Rate)"
+title: "Assignment - Parametric Survival Analysis"
 author: "Dr Mohd Azmi P-UD 0079/19"
 date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
