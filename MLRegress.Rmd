@@ -1,10 +1,10 @@
 ---
-title: "Assignment - Machine Learning (Regression))"
+title: "Assignment - Machine Learning (Regression)"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -17,87 +17,349 @@ knitr::opts_chunk$set(echo = TRUE, warning = F)
 options(qwraps2_markup = "markdown", knitr.kable.NA = '')
 ```
 
-https://www.analyticsvidhya.com/blog/2017/09/creating-visualizing-neural-network-in-r/ - to update dataset, usinng normalize/standardize value
 
 # Motivation
 
-choice
-1. check previous research - outcome score
+Visual impairment or blindness is one of major global health issues. Visual impairment may affect individual's quality of life.
 
-# Environment
+One of tools that commonly use to screen depression was DASS21 questionaire. DASS21 have 3 domains, which are depression, anxiety and stress.
 
-## Packages
-
-```{r}
-library(pacman)
-p_load(haven, tidyverse, knitr, broom, rpart, rpart.plot, Metrics, neuralnet)
-set.seed(119)
-```
+In this study, the researcher would like to find which machine learning is the most accurate in predicting the depression score among patient with monocular blindness
 
 # Analysis
 
-## Linear Regression
+## Packages
+
+These are package used in this study
+```{r}
+set.seed(119)
+library(pacman)
+p_load(haven, tidyverse, knitr, broom, rpart, rpart.plot, Metrics, neuralnet, summarytools)
+```
+
+## Dataset and Data Exploration
+
+The dataset used in this report was shown as below
 
 ```{r}
-mlregds <- read_sav("mlregds.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
-mlregds0 <- read_sav("mlregds.sav")
+mlregds0 <- read_sav("mlregds.sav") %>% na.omit()
+mlregds1 <- mlregds0 %>% mutate_if(is.labelled, ~(as_factor(.))) 
+mlregds2 <- mlregds0
 
-mlregds
+mlregds1
+```
+
+
+## Machine Learning
+
+In this report, 3 types of machine learning will be used to predict the depression score
+
+1. Linear Regression
+2. Decision Tree
+3. Artificial Neural Network
+
+All variable available in the dataset were selected as the predictors for the machine learning.
+
+### ML - Linear Regression
+
+The dataset will be split into training dataset and test dataset.
+
+```{r}
+sRow <- sample(nrow(mlregds1), nrow(mlregds1)*.7)
+
+mlregds1_train <- mlregds1[sRow,]
+mlregds1_test <- mlregds1[-sRow,]
+```
+
+#### Training Linear Regression Model
+
+The linear regression model was trained using training dataset
+
+```{r}
+ds_lrmod <- lm(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, mlregds1_train)
+```
+
+#### Prediction
+
+The outcome for the test dataset will be predicted using the linear regression model 
+
+```{r}
+lrmod_aug <- augment(ds_lrmod, newdata = mlregds1_test) %>%
+  dplyr::select(predicted = .fitted, Total_DS, everything())
+```
+
+#### Evaluation
+
+The model was evaluated using Root Mean Squared Error (RMSE)
+
+```{r}
+lrmod_rmse <- rmse(lrmod_aug$Total_DS, lrmod_aug$predicted)
+```
+
+Evaluation can also be visualize by plotting scatter plot between observed and predicted
+
+```{r}
+lrmod_comp_plot <- ggplot(lrmod_aug, aes(x = Total_DS, y = predicted)) +
+  geom_point() + geom_abline(intercept = 0, slope = 1) +
+  theme_bw()
+```
+
+
+### ML - Decision Tree
+
+#### Training Decision Model
+
+The decision tree model was trained using training dataset
+
+```{r}
+ds_dtmod <- rpart(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = mlregds1_train, method = "anova")
+```
+
+#### Prediction
+
+The outcome for the test dataset will be predicted using the decision tree model
+
+```{r}
+dtmod_pred <- predict(ds_dtmod, mlregds1_test)
+dtmod_pred_comb <- tibble(Predicted = dtmod_pred, mlregds1_test) %>%
+  dplyr::select(Predicted, Total_DS, everything())
+```
+
+#### Evaluation
+
+The model was evaluated using (RMSE)
+
+```{r}
+dtmod_rmse <- rmse(dtmod_pred_comb$Total_DS, dtmod_pred_comb$Predicted)
+```
+
+Evaluation can also be visualize by plotting scatter plot between observed and predicted
+
+```{r}
+dtmod_comp_plot <- ggplot(dtmod_pred_comb, aes(x = Total_DS, y = Predicted)) +
+  geom_point() + geom_abline(intercept = 0, slope = 1) +
+  theme_bw()
+```
+
+
+### ML - Neural Network
+
+For neural network, the dataset need to be scaled
+
+```{r}
+maxscale <- apply(mlregds0, 2, max)
+minscale <- apply(mlregds0, 2, min)
+mlregds_scaled <- as.data.frame(scale(mlregds0, center = minscale, scale = maxscale - minscale))
+
+mlregds_scaled_train0 <- mlregds_scaled[sRow,]
+mlregds_scaled_test0 <- mlregds_scaled[-sRow,]
+```
+
+#### Training Artificial Neural Network Model
+
+The artificial neural network model was trained using training dataset
+
+```{r}
+ds_annmod <- neuralnet(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = mlregds_scaled_train0, hidden = 3, rep = 3, linear.output = T)
+```
+
+#### Prediction
+
+```{r}
+annmod_pred <- predict(ds_annmod, mlregds_scaled_test0)
+annmod_pred_comb <- tibble(Predicted = annmod_pred, mlregds_scaled_test0) %>%
+  dplyr::select(Predicted, Total_DS, everything())
+```
+
+#### Evaluation
+
+The model was evaluated using RMSE
+
+```{r}
+annmod_rmse <- rmse(annmod_pred_comb$Total_DS, annmod_pred_comb$Predicted)
+```
+
+Evaluation can also be visualize by plotting scatter plot between observed and predicted
+
+```{r}
+annmod_comp_plot <- ggplot(annmod_pred_comb, aes(x = Total_DS, y = Predicted)) +
+  geom_point() + geom_abline(intercept = 0, slope = 1) +
+  theme_bw()
+```
+
+# Result
+
+## ML - Linear Regression
+
+The linear regression model estimate was shown below
+
+```{r}
+summary(ds_lrmod)
+```
+
+### Prediction
+
+Predicted depression score for test dataset was shown below
+
+```{r}
+lrmod_aug
 ```
 
 ```{r}
-sRow <- sample(nrow(mlregds), nrow(mlregds)*.7)
-
-train <- mlregds[sRow,]
-test <- mlregds[-sRow,]
+descr(lrmod_aug$predicted, stats = c("min", "max"))
 ```
 
-```{r}
-lr <- lm(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, train)
+the range of predicted outcome however was beyond the original scale of depression score (0 - 14). It was not unexpected, as linear regression was a parametric analysis, in which the outcome will have normal distribution, and may extend below 0 value.
 
-summary(lr)
+### Evaluation
+
+The rmse for linear regression model was shown below
+
+```{r}
+lrmod_rmse
 ```
 
+Scatter plot between observed and predicted was shown below
+
 ```{r}
-rmse(test$Total_DS, predict(lr,test))
+lrmod_comp_plot
 ```
 
-## Decisional Tree
+the plot show there are wide residual
+
+## ML - Decision Tree
+
+The decision tree and the parameter was shown as below
 
 ```{r}
-ds_dtmod <- rpart(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = train, method = "anova")
 rpart.plot(ds_dtmod)
 ```
+
+Note: Each node shows
+
+1. the predicted value
+2. the percentage of observations in the node
+
+### Prediction
+
+Based on the decision tree model, the predicted depression score was predicted for test dataset, as shown below.
+
 ```{r}
-rmse(test$Total_DS, predict(ds_dtmod,test))
+dtmod_pred_comb
 ```
 
 ```{r}
-ggplot(test, aes(x= Total_DS, y = predict(ds_dtmod,test))) + geom_point() + geom_smooth()
-
-ggplot(train, aes(resid(ds_dtmod))) + geom_histogram()
-```
-
-## Neural Network
-
-```{r}
-max <- apply(mlregds0, 2, max)
-min <- apply(mlregds0, 2, min)
-mlregds_scaled <- as.data.frame(scale(mlregds0, center = min, scale = max - min))
-
-train0 <- mlregds_scaled[sRow,]
-test0 <- mlregds_scaled[-sRow,]
+descr(dtmod_pred_comb$Predicted, stats = c("min", "max"))
 ```
 
 ```{r}
-mlregnn <- neuralnet(Total_DS ~ HospCode + Age + GenderCode + MaritalCode + EduCode + IncomeCode + ComorbidCode + DMCode + HPTCode + OtherCode + ClinicalCauseCode + Duration2Code + NormalEye + BestVA + BlindVA2, data = train0, hidden = 3, linear.output = T)
-plot(mlregnn)
+freq(dtmod_pred_comb$Predicted, totals = F, cumul = F, report.nas = F)
 ```
+
+As shown in the decision tree plot, the depression score (eventhough it is numerical) had only 5 possible score as outcomes.
+
+### Evaluation
+
+The RMSE for decision tree model was shown below
 
 ```{r}
-rmse(test0$Total_DS, predict(mlregnn,test0))
+dtmod_rmse
+```
 
+the RMSE for decision tree was smaller than linear regression model.
+
+Scatter plot between observed and predicted was shown below
+
+```{r}
+dtmod_comp_plot
+```
+
+the plot show there are wide residual
+
+
+## ML - Artificial Neural Network
+
+The plot and parameter of artificial neural network model as below
+
+```{r}
+plot(ds_annmod, rep = "best")
+```
+
+### Prediction
+
+Based on the artificial neural network model, the predicted depression score (scaled) was predicted for test dataset, as shown below.
+
+
+```{r}
+annmod_pred_comb
 ```
 
 
+```{r}
+descr(annmod_pred_comb$Predicted, stats = c("min", "max"))
+```
+
+The range of predicted outcome was beyond the scale range (0 - 1).
+
+### Evaluation
+
+The RMSE for artificial neural network was shown below.
+
+```{r}
+annmod_rmse
+```
+
+RMSE for neural network can not be compared directly with the other two model, as the model were run on scaled dataset. The RMSE for linear regression model and decision tree need to be scaled.
+
+the RMSE for linear regression model, scaled following the artificial neural network is as below
+
+```{r}
+scale(lrmod_rmse, center = min(mlregds0$Total_DS), scale = max(mlregds0$Total_DS) - min(mlregds0$Total_DS))[1,1]
+```
+
+the RMSE for decision tree model, scaled following the artificial neural network is as below
+
+```{r}
+scale(dtmod_rmse, center = min(mlregds0$Total_DS), scale = max(mlregds0$Total_DS) - min(mlregds0$Total_DS))[1,1]
+```
+
+Based on the three RMSE for each model, RMSE for decision tree was smallest.
+
+
+Scatter plot between observed and predicted was shown below
+
+
+```{r}
+annmod_comp_plot
+```
+
+visually, the residual in neural network were smaller
+
+
+# Discussion
+
+RMSE, or Root Mean Square Error is measurement of how wide the residual (error). It is however does not have unit and can only be compared for same outcome in same scale.
+
+Many machine learning operate as "black-box". We can adjust the parameter (pruning, increasing hidden layer, etc) to make the model better, however the parameter that explain the effect of the predictor toward the outcome is difficult to described (Watson et. al., 2019).
+
+In typical linear regression, commonly researcher will do variable selection (or feature selection in machine learning), to get the most simplest, parsimonious models (Occam's Razor philosophy). This is to avoid interaction and multicollinearity (increase standard errors of the estimates) between covariates, and also overfitting models (Casson & Farmer, 2014).
+
+However, in many other machine learning method (as demonstrated in this report), all the variable can be used to predict the outcome.
+
+# Conclusion
+
+Decision tree may offer better to predict the outcome of depression score among monocular blindness patient, as compared to classical linear regression. However, adjusting the parameter including pruning and increasing hidden layer may produce better prediction model.
+
+# Reference
+
+Casson, R. J., & Farmer, L. D. (2014). Understanding and checking the assumptions of linear regression: a primer for medical researchers. Clinical & Experimental Ophthalmology, 42(6), 590–596. https://doi.org/10.1111/ceo.12358
+
+Watson, D. S., Krutzinna, J., Bruce, I. N., Griffiths, C. E., McInnes, I. B., Barnes, M. R., & Floridi, L. (2019). Clinical applications of machine learning algorithms: beyond the black box. BMJ (Clinical research ed.), 364, l886. https://doi.org/10.1136/bmj.l886
+
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
 
