@@ -103,7 +103,9 @@ demo_sum <- list("Daerah" = list("Bagan Datuk" = ~ n_perc0(.data$Daerah_ID == "B
                  "Fasting Blood Sugar (mmol/L)" = list("Mean (SD)" = ~ mean_sd(.data$fbsa, denote_sd = "paren")),
                  "HbA1c (%)" = list("Mean (SD)" = ~ mean_sd(.data$hbaa, denote_sd = "paren")))
 
-meanhbabydis<- lmeds %>% group_by(Daerah_ID) %>% summarise(n = n(), `HbA1c Mean` = mean(hbaa))
+meanhbabydis<- lmeds %>%
+  group_by(Daerah_ID) %>%
+  summarise(n = n(), `HbA1c Mean` = mean(hbaa), sd = sd(hbaa))
 ```
 
 
@@ -248,9 +250,7 @@ Null model estimate was shown below
 summary(lmemodnull)
 ```
 
-The mean of HbA1c when adjusted to district variance was `r round(fixef(lmemodnull),2)`, which was a bit higher than average HbA1c regardless of the district effect (7.75 - refer demographic table)
-
-The mean of HbA1c for each district was shown below
+The mean of HbA1c was `r round(fixef(lmemodnull),2)`, while the mean of HbA1c for each district was shown below
 
 ```{r}
 coef(lmemodnull)$Daerah_ID
@@ -263,9 +263,9 @@ The variance between district and within district for null model were as below
 print(lmemodnull_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`.
+Between daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)`, and within Daerah variance: `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`.
 
-In null model, proportion of unexplained variance due to differences between Daerah is `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodnull))[1,4] / (as.data.frame(VarCorr(lmemodnull))[1,4] + as.data.frame(VarCorr(lmemodnull))[2,4]))*100,2)`%
+In null model, proportion of unexplained variance due to differences between daerah is `r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodnull))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodnull))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodnull))[1,4] / (as.data.frame(VarCorr(lmemodnull))[1,4] + as.data.frame(VarCorr(lmemodnull))[2,4]))*100,2)`%
 
 
 ### Random Intercept Model
@@ -300,9 +300,9 @@ The variance between district and within district were as below
 print(lmemodRI_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`.
+Between daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)`, and within daerah variance: `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`.
 
-In Random Intercept model, proportion of unexplained variance due to differences between Daerah was `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100,2)`%.
+In Random Intercept model, proportion of unexplained variance due to differences between daerah was `r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRI))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRI))[2,4],2)`) = `r round((as.data.frame(VarCorr(lmemodRI))[1,4] / (as.data.frame(VarCorr(lmemodRI))[1,4] + as.data.frame(VarCorr(lmemodRI))[2,4]))*100,2)`%.
 
 ### Random Slope Model
 
@@ -343,9 +343,9 @@ The variance between district and within district were as below
 print(lmemodRS_var, comp = "Variance", digits =2)
 ```
 
-Between Daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)`, and within School variance: `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`.
+Between daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)`, and within daerah variance: `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`.
 
-In random slope model, proportion of unexplained variance due to differences between Daerah is`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`) =  `r round((as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100,2)`%.
+In random slope model, proportion of unexplained variance due to differences between daerah is`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` / (`r round(as.data.frame(VarCorr(lmemodRS))[1,4],2)` + `r round(as.data.frame(VarCorr(lmemodRS))[4,4],2)`) =  `r round((as.data.frame(VarCorr(lmemodRS))[1,4] / (as.data.frame(VarCorr(lmemodRS))[1,4] + as.data.frame(VarCorr(lmemodRS))[4,4]))*100,2)`%.
 
 The correlation between intercept and slope was `r round(as.data.frame(VarCorr(lmemodRS))[3,5],2)`, indicate that the intercept and slope was covary.
 
@@ -391,9 +391,9 @@ While fbs, ethnicity, body weight and duration of dm may affect HbA1c level, dif
 # Reference
 
 
-# Additional Info
+# Session Info
 
-Session Info
+
 
 ```{r}
 sessionInfo()
