@@ -1,5 +1,5 @@
 ---
-title: "Assignment - Machine Learning (Classification))"
+title: "Assignment - Machine Learning (Classification)"
 author: "Dr Mohd Azmi P-UD 0079/19"
 date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
@@ -306,7 +306,7 @@ print(summary_table(burnDS2, data_sum), rtitle = "Variables", cnames = c("Median
 The median age of the participant was `r median(burnDS2$AGE)` years old (IQR = `r IQR(burnDS2$AGE)`), while the median total burn surface area among the participant was `r median(burnDS2$TBSA)`% (IQR = `r IQR(burnDS2$TBSA)`%). Most of the participant was male (n = `r count(burnDS2, 3)[2,2]`), white ethnicity (n = `r count(burnDS2, 4)[2,2]`), had no inhalation injury (n = `r count(burnDS2, 6)[1,2]`) and had flame involvement (n = `r count(burnDS2, 7)[2,2]`)
 
 Below are the plot of each variable, grouped by discharge status
-```{r, warning=F}
+```{r, warning=F, message=F}
 dcstat_plot
 age_plot
 gender_plot
@@ -352,7 +352,7 @@ The model was evaluate with test dataset.
 dteval_res
 ```
 
-The model had good accuracy (`r round((dteval_res$overall['Accuracy'])*100,1)`%) and high precision / positive predictive value (`r round((dteval_res$byClass['Pos Pred Value'])*100,1)`%), but with lower recall / sensitivity (`r round((dteval_res$byClass['Sensitivity'])*100,1)`%).
+The model had good accuracy (`r round((dteval_res$overall['Accuracy'])*100,1)`%) and good precision / positive predictive value (`r round((dteval_res$byClass['Pos Pred Value'])*100,1)`%), but with lower recall / sensitivity (`r round((dteval_res$byClass['Sensitivity'])*100,1)`%).
 
 
 ### 10-fold cross validation
@@ -363,7 +363,7 @@ The accuracy for each of the fold in the 10-fold cross validation was shown belo
 dtaccuracy
 ```
 
-The 10-fold cross validation for decision tree show accuracy ranging `r sprintf("%1.1f%%", 100*min(dtaccuracy))` to `r sprintf("%1.1f%%", 100*max(dtaccuracy))` for each of the fold respectively. the average accuracy was `r sprintf("%1.1f%%", 100*mean(dtaccuracy))`
+The 10-fold cross validation for decision tree show accuracy ranging `r sprintf("%1.1f%%", 100*min(dtaccuracy))` to `r sprintf("%1.1f%%", 100*max(dtaccuracy))`, with average accuracy `r sprintf("%1.1f%%", 100*mean(dtaccuracy))`
 
 ## Machine Learning - Artificial Neural Network
 
@@ -375,12 +375,13 @@ The artificial neural network (and the parameter) was shown below
 plot(burnDS_annmod, rep = "best")
 ```
 
-the model were tested using test dataset to predict the outcome, as shown below.
 
 ### Prediction
 
-```{r}
+Using test dataset, the outcome of the model was shown below.
 
+
+```{r}
 burnDS1_test_annpredcomb %>% select(DcStat, Predicted, everything())
 ```
 
@@ -393,18 +394,18 @@ anneval_res
 ```
 
 
-The model had good accuracy (`r round((anneval_res$overall['Accuracy'])*100,1)`%), but lower recall / sensitivity (`r round((anneval_res$byClass['Sensitivity'])*100,1)`%) and lower precision / positive predictive value (`r round((anneval_res$byClass['Pos Pred Value'])*100,1)`%), and high 
+The model had good accuracy (`r round((anneval_res$overall['Accuracy'])*100,1)`%), but lower recall / sensitivity (`r round((anneval_res$byClass['Sensitivity'])*100,1)`%) and lower precision / positive predictive value (`r round((anneval_res$byClass['Pos Pred Value'])*100,1)`%).
 
 
 ### 10-fold cross validation
 
-The model was done with 10-fold cross validation
+Average accuracy for 10-fold cross validation of the model was shown below
 
 ```{r}
 annaccuracy
 ```
 
-The 10-fold cross validation for artificial neural network model show accuracy ranging `r sprintf("%1.1f%%", 100*min(annaccuracy))` to `r sprintf("%1.1f%%", 100*max(annaccuracy))` for each of the fold respectively. The average accuracy was `r sprintf("%1.1f%%", 100*mean(annaccuracy))`
+The 10-fold cross validation for artificial neural network model show accuracy ranging `r sprintf("%1.1f%%", 100*min(annaccuracy))` to `r sprintf("%1.1f%%", 100*max(annaccuracy))`, with average accuracy was `r sprintf("%1.1f%%", 100*mean(annaccuracy))`
 
 ## Model Comparison
 
@@ -427,18 +428,19 @@ When comparing the 10-fold cross-validation, decision tree model had higher aver
 
 ### Comparing agreement between two method
 
-there were also different predicted outcome (from test dataset) between the two model
+Crosstabulation between predicted outcome for decision tree model and artificial neural network was shown below
 
 ```{r}
-agree_res <- confusionMatrix(burnDS2_test_dtpred, as.factor(burnDS1_test_annpred1), positive = "Death")
-agree_res
+agree_res <- confusionMatrix(burnDS2_test_dtpred, as.factor(burnDS1_test_annpred1),
+                             positive = "Death")
+agree_res$table
 ```
 
 While they dont perfectly agree with each other, both the model had good agreement with Kappa = `r round((agree_res$overall['Kappa'])*100,1)`%
 
 ### Comparing the predicted outcome with new dataset
 
-Below is the predicted outcome for both decision tree model and artificial neural network model, when tested with specified new dataset
+Below is the predicted outcome for both decision tree model and artificial neural network model, when tested with the specified new dataset
 
 ```{r}
 comparison_dt
