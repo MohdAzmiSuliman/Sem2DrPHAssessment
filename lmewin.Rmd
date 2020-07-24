@@ -149,7 +149,7 @@ In Random Intercept model, the HbA1c was estimated by considering the effect of 
 
 ```{r}
 lmemodRI <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 | Daerah_ID), data = lmeds, REML = F)
-lmemodRI_tidy <- tidy(lmemodRI, conf.int = T) %>% filter(group == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
+lmemodRI_tidy <- tidy(lmemodRI, conf.int = T) %>% filter(effect == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
 ```
 
 The variance between district and within can be measured.
@@ -165,7 +165,7 @@ Random slope model was done to check whether there are also effect of district v
 
 ```{r}
 lmemodRS <- lmer(hbaa ~ EthCode + fbsa + wt10 + dmdur5 + (1 + fbsa | Daerah_ID), lmeds, control = lmerControl(optimizer = "bobyqa"), REML = F)
-lmemodRS_tidy <- tidy(lmemodRS, conf.int = T) %>% filter(group == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
+lmemodRS_tidy <- tidy(lmemodRS, conf.int = T) %>% filter(effect == "fixed") %>% dplyr::select(term, estimate, conf.low, conf.high)
 ```
 
 The variance between district and within can be measured.
