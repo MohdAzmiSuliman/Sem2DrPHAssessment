@@ -1,10 +1,10 @@
 ---
-title: "Assignment - Ordinal Logistic Regression"
+title: "Assignment - Ordinal Logistic Regression & Multinomial Logistic Regression"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -18,23 +18,30 @@ options(qwraps2_markup = "markdown", knitr.kable.NA = '')
 
 # Motivation
 
-Delayed notification will delay public health action.
+Delayed notification will delay public health action. Thus identify factors may help in improving the timeliness of disease notification.
 
-In this example, the researcher 
+In this report, the outcome variables (Time of notification) had 3 possible outcome
 
+1. Early Notification
+2. Expected Notification
+3. Delayed Notification
 
-# Environment
+Since there are 3 possible outcome, binary logistic regression was not possible, thus multinomial or ordinal logistic regression is more appropriate
+
+# Analysis
 
 ## Packages
 
+These are the packages used in this report
+
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, ordinal, caret, VGAM, LogisticDx)
+p_load(tidyverse, haven, DT, broom, summarytools, knitr, scales, ordinal, caret, VGAM, LogisticDx, qwraps2)
 ```
 
 ## Dataset & Data Exploration
 
-
+The dataseet was shown as below
 
 ```{r}
 ordds <-  read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
@@ -42,153 +49,269 @@ ordds
 ```
 
 
-# Analysis & Result
-
 ## Descriptive
 
+The data is summarised and presented in appropriate plot
 
 ```{r, results="asis"}
-freq(ordds)
-
+data_summary <- list("Notification Time" = list("Early" = ~ n_perc0(.data$NotiDurCode == "Early"),
+                                                "Expected" = ~ n_perc0(.data$NotiDurCode == "Expected"),
+                                                "Late" = ~ n_perc0(.data$NotiDurCode == "Late")),
+                     "Disease" = list("Food Poisoning" = ~ n_perc0(.data$Disease == "Food Poisoning"),
+                                      "Measles" = ~ n_perc0(.data$Disease == "Measles"),
+                                      "Dengue" = ~ n_perc0(.data$Disease == "Dengue"),
+                                      "HFMD" = ~ n_perc0(.data$Disease == "HFMD")))
 ```
-
-
-
-```{r, results="asis"}
-descr(ordds)
-```
-
-```{r}
-ggplot(ordds, aes(Disease, fill = Disease)) +
-  geom_bar() + scale_y_continuous(labels = comma)
-ggplot(ordds, aes(NotiDurCode, fill = NotiDurCode)) +
-  geom_bar() + scale_y_continuous(labels = comma)
-ggplot(ordds, aes(FacilityCodeGC, fill = FacilityCodeGC)) +
-  geom_bar() + scale_y_continuous(labels = comma) + coord_flip()
-ggplot(ordds, aes(DxDayReCodeMon, fill = DxDayReCodeMon)) +
-  geom_bar() + scale_y_continuous(labels = comma) + coord_flip()
-ggplot(subset(ordds, !is.na(CaseClassReCode)), aes(CaseClassReCode, fill = CaseClassReCode)) +
-  geom_bar() + scale_y_continuous(labels = comma)
-ggplot(ordds, aes(DxStatRecodeNoMissing, fill = DxStatRecodeNoMissing)) +
-  geom_bar() + scale_y_continuous(labels = comma)
-ggplot(subset(ordds, !is.na(ACDPCDReCode)), aes(ACDPCDReCode, fill = ACDPCDReCode)) +
-  geom_bar() + scale_y_continuous(labels = comma)
-ggplot(ordds, aes(StateReCode, fill = StateReCode)) +
-  geom_bar() + scale_y_continuous(labels = comma) + coord_flip()
-ggplot(ordds, aes(DxMonthCode, fill = DxMonthCode)) +
-  geom_bar() + scale_y_continuous(labels = comma) + coord_flip()
-```
-
 
 ## Multinomial Logistic Regression
 
 ### Univariable
 
-```{r}
-levels(ordds$NotiDurCode)
-mulnomds <- ordds %>% mutate(NotiDurCode2 = fct_relevel(NotiDurCode, levels = c("Late", "Expected", "Early")))
-levels(mulnomds$NotiDurCode2)
+Univariable multinomial logistic regression was done to estimate the regression between the time of notification and type of disease.
 
+```{r}
+mulnomds <- ordds %>% mutate(NotiDurCode2 = fct_relevel(NotiDurCode, levels = c("Late", "Expected", "Early")))
 mulnomlr_dis <- vglm(NotiDurCode2 ~ Disease, data=mulnomds, family = "multinomial")
-summary(mulnomlr_dis)
 ```
 
 ### Multivariable
 
+Multivariable analysis was done with these covariates
+
+1. Type of Requirement for notification
+2. Reporting facilty
+3. Day of notification
+4. Region
+
 ```{r}
 mulnommlr <- vglm(NotiDurCode2 ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomds, family = "multinomial")
-summary(mulnommlr)
 ```
+#### Model Checking
 
-### Model Checking
+Model checking was done, with separating the outcome.
+
+1. Accuracy
+2. AUC Curve
 
 Logit 1 - Early vs Late
 
 ```{r}
-levels(ordds$NotiDurCode)
 mulnomlog1ds <- ordds %>% filter(NotiDurCode == c("Early", "Late"))
-
 logreglog1 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog1ds, family = "binomial")
 logreglog1aug <- augment(logreglog1, type.predict = "response", type.residual = "response") %>%
   mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
                        labels = c("Early", "Late")))
-descr(logreglog1aug$.fitted)
-confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")
-gof_logreglog1 <- gof(logreglog1, plotROC = T, g=12)
+logreglog1aug_accuracy <- confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")
 ```
 
-for model 1, accuracy was `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
 
-Logit 1 - Expected vs Late
+Logit 2 - Expected vs Late
 
 ```{r}
-levels(ordds$NotiDurCode)
 mulnomlog2ds <- ordds %>% filter(NotiDurCode == c("Expected", "Late"))
-
 logreglog2 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog2ds, family = "binomial")
 logreglog2aug <- augment(logreglog2, type.predict = "response", type.residual = "response") %>%
   mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
                        labels = c("Expected", "Late")))
-descr(logreglog2aug$.fitted)
-confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")
-gof_logreglog2 <- gof(logreglog2, plotROC = T, g=13)
+logreglog2aug_accuracy <- confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")
 ```
-
-for model 2, accuracy was `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
 
 
 ## Ordinal Logistic Regression
 
+If the outcome had order, ordinal logistic regression may be considered
+
 ### Univariable
+
+The univariable ordinal logistic regression ws done to measure the effect of disease on the outcome
 
 ```{r}
 ordlr_dis <- clm(NotiDurCode ~ Disease, data=ordds)
-summary(ordlr_dis)
-tidy(ordlr_dis, exponentiate = T, conf.int = T)
 ```
-
-
-
-2. The odd of Measles being in expected or above is `r round(exp(coef(ordlr_dis)[3]), 2)` higher  `r round(exp(confint(ordlr_dis)[1,]), 2)`  (95% CI: 1.10, 1.46, p = 0.001) than a normal BMI.
 
 ### Multivariable
 
+Multivariable analysis was done with these covariates
+
+1. Type of Requirement for notification
+2. Reporting facilty
+3. Day of notification
+4. Region
+
 ```{r}
 ordmlr <- clm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=ordds)
-summary(ordmlr)
-tidy(ordmlr, exponentiate = T, conf.int = T)
 ```
 
 
 ### Model Fitness
 
+Model fitness was tested comparing predicted and observed outcome
+
 ```{r}
 ordmlr_predds <- augment(ordmlr, type.predict = "class")
+ordmlr_predds_accuracy <- confusionMatrix(ordmlr_predds$.fitted, ordmlr_predds$NotiDurCode)
 ```
+
+Model assumption (ordinal) was also tested
 
 ```{r}
-confusionMatrix(ordmlr_predds$.fitted, ordmlr_predds$NotiDurCode)
+nomtest <- nominal_test(ordmlr)
 ```
 
+# Result
 
-### Assumption
+## Demographic
+
+The summary of the data was shown below
+
+```{r, results="asis"}
+print(summary_table(ordds, data_summary), rtitle = "Variables", cnames = c("n (%)"))
+```
+
+The data was also visualized in plots below
 
 ```{r}
-nominal_test(ordmlr)
+ggplot(ordds, aes(NotiDurCode, fill = NotiDurCode)) +
+  geom_bar() + scale_y_continuous(labels = comma)
+ggplot(ordds, aes(Disease, fill = Disease)) +
+  geom_bar() + scale_y_continuous(labels = comma) + facet_wrap(.~NotiDurCode)
+ggplot(ordds, aes(FacilityCodeGC, fill = FacilityCodeGC)) +
+  geom_bar() + scale_y_continuous(labels = comma) + coord_flip() + facet_wrap(NotiDurCode~.)
+ggplot(ordds, aes(DxDayReCodeMon, fill = DxDayReCodeMon)) +
+  geom_bar() + scale_y_continuous(labels = comma) + coord_flip() + facet_wrap(.~NotiDurCode)
+ggplot(subset(ordds, !is.na(CaseClassReCode)), aes(CaseClassReCode, fill = CaseClassReCode)) +
+  geom_bar() + scale_y_continuous(labels = comma) + facet_wrap(.~NotiDurCode)
+ggplot(ordds, aes(DxStatRecodeNoMissing, fill = DxStatRecodeNoMissing)) +
+  geom_bar() + scale_y_continuous(labels = comma) + facet_wrap(.~NotiDurCode)
+ggplot(subset(ordds, !is.na(ACDPCDReCode)), aes(ACDPCDReCode, fill = ACDPCDReCode)) +
+  geom_bar() + scale_y_continuous(labels = comma) + facet_wrap(.~NotiDurCode)
+ggplot(ordds, aes(StateReCode, fill = StateReCode)) +
+  geom_bar() + scale_y_continuous(labels = comma) + coord_flip() + facet_wrap(.~NotiDurCode)
+ggplot(ordds, aes(DxMonthCode, fill = DxMonthCode)) +
+  geom_bar() + scale_y_continuous(labels = comma) + coord_flip() + facet_wrap(.~NotiDurCode)
 ```
 
-###
+## Multinomial Logistic Regression
 
+### Univariable - type of disease
+
+the univariable analysis was shown below
+
+```{r}
+summary(mulnomlr_dis)
+```
+
+As compared to food poisoning, the odd ratio of having either expected or late notification was higher for all other diseases.
+
+### Multivariable Analysis
+
+The multivariable analysis estimate was shown below
+
+```{r}
+summary(mulnommlr)
+```
+
+All 4 covariates had significant effect on the outcome.
+
+### Model Assessment
+
+1. Logit 1
+
+The accuracy of logit 1 was shown below
+
+```{r}
+logreglog1aug_accuracy
+```
+
+For logit 1, accuracy was `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity.  
+
+
+The ROC curve for logit 1 was shown below
+
+```{r}
+gof_logreglog1 <- gof(logreglog1, plotROC = T, g=12)
+```
+
+2. Logit 2
+
+The accuracy of logit 2 was shown below
+
+```{r}
+logreglog2aug_accuracy
+```
+
+For logit 2, accuracy was `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[1]*100, 1)`% (95% CI = `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[3]*100, 1)`%, `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$overall[4]*100, 1)`%) with `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[2]*100, 1)`% specificity but `r round(confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")$byClass[1]*100, 1)`% sensitivity  
+
+The ROC curve for logit 2 was shown below
+
+```{r}
+gof_logreglog2 <- gof(logreglog2, plotROC = T, g=13)
+```
+
+## Ordinal Logistic Regression
+
+### Univariable - Disease
+
+The estimate of the univariable analysis was shown below
+
+```{r}
+summary(ordlr_dis)
+```
+
+The estimate were exponentiate to get the odd ratio, as shown below
+
+```{r}
+tidy(ordlr_dis, exponentiate = T, conf.int = T)
+```
+
+The odd of measles being in expected notification or delayed notification is `r round(exp(coef(ordlr_dis)[3]), 2)` higher (95% CI = `r round(exp(confint(ordlr_dis)[1,]), 2)`) than food poisoning case.
+
+
+### Multivariable
+
+The multivariable analysis estimate was shown below
+
+```{r}
+summary(ordmlr)
+```
+All 4 covariates had significant effect on the outcome.
+
+The estimate were exponentiate to get the odd ratio, as shown below
+
+```{r}
+tidy(ordmlr, exponentiate = T, conf.int = T)
+```
+
+### Model Assessment
+
+The accuracy of the ordinal logistic regression model was shown below.
+
+```{r}
+ordmlr_predds_accuracy
+```
+
+The ordinal test was shown below
+
+```{r}
+nomtest
+```
+
+The model assumption for proportional odds was violated.
+
+Thus ordinal logistic regression was not appropriate.
 
 # Discussion
 
-- model checking
-- big data, expected significant finding - look at the magnitude
+In this dataset, the data was large with almost 48,000 notification recorded. Thus even small effect will have significant statistically.
+
+For example, in the multivariable ordinal logistic regression model the odd ratio of disease that need to be notify by administrative order was 1.13 as compared to disease that need to be notify by CDCIS act, which only increase by 13%.
+
+Thus, apart for looking at the significant (statistical) factors, the estimates were also important as even small (clinical unimportant) effect will have significant statistically.
+
 
 # Conclusion
 
-# Reference
-
+All the four factors, type of Requirement for notification, reporting facility, day of notification and region had significant association with the timeliness of notification, however the proportionality assumption was not met, hence multinomial logistic regression is more suitable.
 
 # Additional Info
 
