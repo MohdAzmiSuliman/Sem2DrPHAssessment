@@ -1,10 +1,10 @@
 ---
 title: "Assignment - Poisson Regression (Rate)"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -18,15 +18,15 @@ options(qwraps2_markup = "markdown", knitr.kable.NA = '')
 
 # Motivation
 
-Delayed notification will delay public health action.
+Delayed notification will delay public health action. Thus, by predicting the number of delayed notification, more proactive action can be taken to improve the timeliness of delayed notification.
 
 In this example, the researcher would like to measure / predict number of delayed notification.
 
-Note: Data was generated (Refer [Dataset](#dataset-data-exploration))
-
-# Environment
+# Analysis
 
 ## Packages
+
+These are the packages used in this example
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
@@ -43,8 +43,10 @@ In this data, there are 5 variables
 4. total : total disease notification received
 5. delaynum : number of delayed notification received
 
+The dataset was generated to simulate the count/rate of delayed notification.
+
 ```{r}
-set.seed(100)
+set.seed(119)
 
 v_districtid <- c(1:100) %>% set_varl("District ID")
 v_total <- rpois(100,8) %>% set_varl("No of Total Notification")
@@ -86,17 +88,47 @@ v_ppka <- v_popnum %>%     #random yes no for ppka - bigger population have high
 
 deldisds <- tibble(id = v_districtid, ppka = v_ppka, pop = v_popnum/10, total = v_total, delaynum = v_delay-v_ppka*2) %>% filter(delaynum >= 0) %>% 
   mutate_if(is.labelled, ~(as_factor(.)))
-datatable(deldisds,
-          class = "cell-border stripe",
-          colnames = c("DistrictID", "PPKA Status", "Population No. ('0,000)", "Total Notification", "No. of Delayed Notification"))
 ```
+The generated dataset was shown below
 
-
-# Analysis & Result
+```{r}
+deldisds %>%
+  mutate(DistrictID = id, `PPKA Status` = ppka, `No of Pop. (0,000)` = pop,
+         `Total Notification` = total, `No. of delayed notification` = delaynum) %>% 
+  select(DistrictID:`No. of delayed notification`)
+```
 
 ## Descriptive
 
-From 94 district, 60% of them have PPKA
+The data was summarised and presented in appropriate plot.
+
+## Poisson Linear Model
+
+The model was estimated using poisson regression
+
+```{r}
+delay_mod <- glm(delaynum ~ pop + ppka + offset(log(total)), family = poisson, data = deldisds)
+delay_mod_tidy <- tidy(delay_mod, conf.int = T) %>%
+  mutate(coef = estimate, IRR = exp(estimate), IRRllci = exp(conf.low), IRRulci = exp(conf.high)) %>%
+  select(term, coef, std.error, IRR, IRRllci, IRRulci, p.value)
+```
+
+Forest plot was also done to visualize the effect of the estimate
+
+```{r}
+delay_mod_forestplot <- tidy(delay_mod, conf.int=T) %>% 
+  ggplot(aes(x=exp(estimate), y=term, color = term)) +
+    geom_point() +
+    geom_errorbarh(aes(xmin = exp(conf.low), xmax = exp(conf.high))) +
+    geom_vline(lty=2, xintercept = 1) + xlab("IRR") + theme_bw()
+```
+
+
+# Result
+
+## Descriptive
+
+From 90 district, half of them have PPKA
 
 ```{r, results="asis"}
 freq(deldisds$ppka)
@@ -141,30 +173,24 @@ ggplot(deldisds, aes(x=pop)) +
 
 ### Model Estimation
 
-
-Poisson Regression shows that both population variable and present of PPKA were signficant
+Poisson Regression shows that both population variable and present of PPKA were significant
 
 ```{r}
-delay_mod <- glm(delaynum ~ pop + ppka + offset(log(total)), family = poisson, data = deldisds)
-summary(delay_mod)
-tidy(delay_mod, conf.int = T)  %>%
-  mutate(coef = estimate, IRR = exp(estimate), IRRllci = exp(conf.low), IRRulci = exp(conf.high)) %>% select(term, coef, std.error, IRR, IRRllci, IRRulci, p.value) %>% kable()
+delay_mod_tidy
 ```
 
 For each increase of 1 unit of population (i.e. 10,000 population), the log rate of delayed notification per total notification was increase by `r round(coef(delay_mod)[2],2)`, which equivalence to IRR of `r round(exp(coef(delay_mod)[2]),2)` (95% CI = `r round(exp(confint(delay_mod)[2,]),2)`).
 
 Among district with PPKA, the log rate of delayed notification per total notification was `r round(coef(delay_mod)[3],2)` (i.e. those with PPKA had lower rate) as compare to district without PPKA. The IRR of rate delayed notification per total notification for district with PPKA as compared to those without PPKA was `r round(exp(coef(delay_mod)[3]),2)` (95% CI = `r round(exp(confint(delay_mod)[3,]),2)`).
 
+below is the forest plot showing the effect of the covariate
+
 ```{r}
-tidy(delay_mod, conf.int=T) %>% 
-  ggplot(aes(x=exp(estimate), y=term, color = term)) +
-    geom_point() +
-    geom_errorbarh(aes(xmin = exp(conf.low), xmax = exp(conf.high))) +
-    geom_vline(lty=2, xintercept = 1) + xlab("IRR")
+delay_mod_forestplot
 ```
 
 
-## Observed vs Predicted
+### Observed vs Predicted
 
 Below are the predicted number of delayed notification as compared to observed delayed notification for each of sample.
 
@@ -210,19 +236,11 @@ augment(delay_mod, type.predict = "response", newdata = newds2) %>%
 
 ```
 
-# Discussion
-
-- Present of PPKA reduce the rate / count of delayed notification
-- Why poisson rate
-
 # Conclusion
 
-# Reference
+While high number of population will have higher rate of delayed notification, but presence of PPKA will have lower rate of delated notification
 
-
-# Additional Info
-
-Session Info
+# Session Info
 
 ```{r}
 sessionInfo()
