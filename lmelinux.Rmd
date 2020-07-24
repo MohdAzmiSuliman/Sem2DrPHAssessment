@@ -50,7 +50,7 @@ p_load(knitr, tidyverse, haven, summarytools, qwraps2, scales, lme4, broom, merT
 
 Due to very small estimate, data transformation need to be done for variable weight and the duration of dm. Weight were measure in per 10kg unit while the duration is in per 5 years of duration.
 
-Below was the dataset (the dataset was available in moodle/elearning).
+Below was the dataset.
 
 ```{r}
 lmeds <-  read_sav("mlm_perakndr.sav") %>%
