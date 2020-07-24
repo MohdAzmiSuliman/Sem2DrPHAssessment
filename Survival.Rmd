@@ -1,10 +1,10 @@
 ---
-title: "Assignment - Parametric Survival Analysis"
+title: "Assignment - Parametric Survival Analysis (Rate)"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -26,14 +26,11 @@ There are several complications related to tenckhoff catheterization, which gene
 2. compare between percutaneous and peritonescopic method
 3. find factors that may affect the time-to-complication and time-to-removal of the  tenckhoff catheter.
 
-Note: 
-
-1. while this research and dataset were based on ongoing research by one of MMed student, the dataset was altered.
-2. hence any findings and interpretation from this analysis does not reflect the real outcome of patients in HRPZ and SHOULD NOT be use other than this assignment.
-
 # Environment
 
 ## Packages
+
+These are the packages used in this report
 
 ```{r}
 library(pacman) # package manager, elegant way to load packages
@@ -61,8 +58,7 @@ pdcds0 <- read_sav("pdcsurvivalalter.sav")
 pdcds0 %>% 
   arrange(DataID) %>%
   mutate_if(is.labelled, ~(as_factor(.))) %>%
-  select(-c(DataID, Comorbidities)) %>%
-  datatable(fillContainer = T)
+  select(-c(DataID, Comorbidities))
 ```
 
 data wrangling was done
@@ -85,9 +81,10 @@ pdcds1 <- pdcds0 %>%
   mutate(RemovalDur = as.double(difftime(ymd(RemovalDate), ymd(PlaceDate), units = "days")),
          CxDur = as.double(difftime(ymd(CxDate), ymd(PlaceDate), units = "days"))) %>%
   replace_na(list(CxDur = 365, RemovalDur = 365)) %>%
-  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx, CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur, RemovalReason)
+  select(DataID, Gender, Race, Age, CM, CMDM, CMHPT, CMIHD, Method, PlaceDate, Compx,
+         CxTypeCode, CxDate, CxDur, CatheterStatus, RemovalDate, RemovalDur, RemovalReason)
 
-pdcds1 %>% select(-DataID) %>% datatable(fillContainer = T)
+pdcds1
 ```
 
 Simple data exploration to ensure necessary data wrangling was done.
@@ -131,6 +128,7 @@ out of all the samples, more than half of them underwent percutaneous method, wi
 pdcds1_withna <- pdcds1 %>%
   replace_with_na(replace = list(RemovalDur = "365", CxDur = "365",
                                  CxTypeCode = "No Complication", RemovalReason = "N/A - Not removed"))
+
 method_sum <- list("Method" = list("Percutaneous Method" = ~ n_perc0(.data$Method == "Percutaneous Method", digits = 1),
                                  "Peritoneoscopy Method" = ~ n_perc0(.data$Method != "Percutaneous Method", digits = 1)),
                    "Complication" = list("Yes" = ~ n_perc0(.data$Compx == "Yes", digits = 1),
@@ -151,6 +149,7 @@ method_sum <- list("Method" = list("Percutaneous Method" = ~ n_perc0(.data$Metho
                                                "Exit Site Infection" = ~ n_perc0(.data$RemovalReason == "Exit Site Infection",
                                                                                  na_rm = T, digits = 1),
                                                "Malfunction" = ~ n_perc0(.data$RemovalReason == "Malfunction", na_rm = T, digits = 1)))
+
 print(summary_table(pdcds1_withna, method_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
 ```
 
@@ -305,7 +304,6 @@ cxsurvweimod_res
 
 when adjusted to gender, age and diabetes status, there was no significant association between method and time-to-event of catheter complication, with time ratio (TR) of peritonesocopy method (as compare to percutaneous method) to develop catheter complication was `r round(cxsurvweimod_res$ETR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$ETR, 2)[4,2:3]`). 
 
-`r 2+1`
 
 the hazard ratio (HR) of peritonesocopy method (as compare to percutaneous method) to develop catheter was `r round(cxsurvweimod_res$HR, 2)[4,1]` (95% CI = `r round(cxsurvweimod_res$HR, 2)[4,2:3]`) times higher, when adjusted to gender, age and diabetes status.
 
@@ -320,10 +318,8 @@ data.frame(cbind(newds, predmod)) %>%
   mutate("Predicted Complication Time (Days) - Median" = X2,
          "Predicted Complication Time (Days) - Q1" = X1,
          "Predicted Complication Time (Days) - Q3" = X3) %>%
-  select(Gender, Age, CMDM, Method, "Predicted Complication Time (Days) - Q1", "Predicted Complication Time (Days) - Median", "Predicted Complication Time (Days) - Q3") %>% datatable()
+  select(Gender, Age, CMDM, Method, "Predicted Complication Time (Days) - Q1", "Predicted Complication Time (Days) - Median", "Predicted Complication Time (Days) - Q3")
 ```
-
-Prediction for Survival Probability
 
 
 ## Parametric Survival Analysis - Catheter Removal
@@ -384,40 +380,22 @@ Prediction for Survival Time - Catheter Removal
 
 removal_predmod <- predict(removalsurvweimod, newdata = newds, type = "quantile", p = c(.25,.5,.75))
 data.frame(cbind(newds, removal_predmod)) %>%
-  mutate("Predicted Removal Time (Days) - Median" = X2,
-         "Predicted Removal Time (Days) - Q1" = X1,
-         "Predicted Removal Time (Days) - Q3" = X3) %>%
-  select(Gender, Age, CMDM, Method, "Predicted Removal Time (Days) - Q1", "Predicted Removal Time (Days) - Median", "Predicted Removal Time (Days) - Q3") %>% datatable()
+  mutate("Predicted - Median" = X2,
+         "Predicted - Q1" = X1,
+         "Predicted - Q3" = X3) %>%
+  select(Gender, Age, CMDM, Method, "Predicted - Q1", "Predicted - Median", "Predicted - Q3")
 ```
 
-```{r}
-#augment(cxsurvweimod, newdata = pdcds1_ted, type.predict="response") %>% select(Gender, CMDM, Method, CxDur, .fitted)
-```
-
-Prediction for Survival Probability
 
 # Discussion
 
-- non-parametric survival - show that for catheter removal, there is significant with percutaneous have higher risk 
-- discuss weibull vs other distribution
-
-- gender not significant
-
-- dm significant - impaired wound healing, higher risk to infection
+In this study, gender had no effect on the survival of the catheter, while diabetic patient had higher risk to infection and eventually survival of the catheter. This is due to DM impaired wound healing.
 
 # Conclusion
 
-# Reference
+Diabetes and method of catheterization affect the survival of the catheter
 
-
-# Additional Info
-
-```{r}
-
-```
-
-
-
+# Session Info
 
 ```{r}
 sessionInfo()
