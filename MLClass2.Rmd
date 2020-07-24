@@ -1,10 +1,10 @@
 ---
 title: "Assignment - Machine Learning (Classification))"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -17,27 +17,37 @@ knitr::opts_chunk$set(echo = TRUE, warning = F)
 options(qwraps2_markup = "markdown", knitr.kable.NA = '')
 ```
 
-https://www.analyticsvidhya.com/blog/2017/09/creating-visualizing-neural-network-in-r/ - to update dataset, usinng normalize/standardize value
-
 # Motivation
 
 The dataset is taken from National Burn Repository 2007 Report (Hosmer, 2013). In this study, they record the hospital discharge status, patient's gender, patient's ethnicity, total burn surface area, inhalation injury and flame involvement. 1,000 data were collected (from total of 40,000 original data) in the dataset, BURN1000, which oversampled patient who died in hospital and undersampled subject who lived.
 
-In this study, we would like to ascertain factors associated with death upon discharge among the burn injury patient. 
+In this study, we would like to ascertain factors associated with death upon discharge among the burn injury patient, by using machine learning. There are several machine learning method available, and in this report, two common machine learning method will be use, which is decision tree and artificial network 
 
-# Environment
+# Analysis
 
 ## Packages
 
+These were the list of package use in this report
+
 ```{r}
-library(pacman) # package manager, elegant way to load packages
-p_load(tidyverse, haven, DT, rpart, summarytools, broom, caret, neuralnet, plyr, rpart.plot, knitr, e1071)
 set.seed(119)
+library(pacman) # package manager, elegant way to load packages
+p_load(tidyverse, haven, rpart, summarytools, broom, caret, neuralnet, plyr, rpart.plot, knitr, e1071, qwraps2)
 ```
 
 ## Dataset & Data Exploration
 
-Below are the data from the dataset
+In this dataset, there are several variables
+
+1. DcStat: Status upon discharge (or last recorded status) - Alive (0), Death (1)
+2. Patient Age
+3. Gender - Female (0), Male (1)
+4. Ethnicity - Non-white (0), White (1)
+5. TBSA: Total Burn Surface Area
+6. Inhale: Inhalation Injury - No (0), Yes (1)
+7. Flame: Flame Injury - No (0), Yes (1)
+
+The dataset as shown below
 
 ```{r}
 burnDS0 <- read.delim("BURN1000.txt", header = TRUE, sep = "\t", dec = ".")
@@ -54,10 +64,49 @@ burnDS2 <- burnDS0 %>%
          Flame = factor(FLAME, labels = c("No", "Yes"))) %>%
   select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
 
-burnDS2 %>% datatable()
+burnDS2
 ```
 
-the dataset was split into training dataset and test dataset. the seed was set at 119.
+
+## Data Summary
+
+The data will be summarised and plot to appropriate plot
+
+```{r}
+data_sum <- list("Status upon discharge" = list("Alive" = ~ n_perc0(.data$DcStat == "Alive"),
+                                                "Death" = ~ n_perc0(.data$DcStat == "Death")),
+                 "Age (year)" = list("Median (Q1, Q3)" = ~ median_iqr(.data$AGE)),
+                 "Gender" = list("Female" = ~ n_perc0(.data$Gender == "Female"),
+                                 "Male" = ~ n_perc0(.data$Gender == "Male")),
+                 "Ethnicity" = list("Non-white" = ~ n_perc0(.data$Ethnic == "Non-white"),
+                                    "White" = ~ n_perc0(.data$Ethnic == "White")),
+                 "TBSA (%)" = list("Median (Q1, Q3)" = ~ median_iqr(.data$TBSA)),
+                 "Inhalation Injury" = list("No" = ~ n_perc0(.data$Inhale == "No"),
+                                            "Yes" = ~ n_perc0(.data$Inhale == "Yes")),
+                 "Flame Injury" = list("No" = ~ n_perc0(.data$Flame == "No"),
+                                       "Yes" = ~ n_perc0(.data$Flame == "Yes")))
+```
+
+
+```{r}
+dcstat_plot <- ggplot(burnDS2, aes(DcStat, fill = DcStat)) + geom_bar() + theme_bw()
+age_plot <- ggplot(burnDS2, aes(AGE)) + geom_histogram(colour = "white", fill = "black") +
+  theme_bw() + facet_wrap(~DcStat)
+gender_plot <- ggplot(burnDS2, aes(Gender, fill = Gender)) + geom_bar() +
+  theme_bw() + facet_wrap(~DcStat)
+ethnic_plot <- ggplot(burnDS2, aes(Ethnic, fill = Ethnic)) + geom_bar() +
+  theme_bw() + facet_wrap(~DcStat)
+tbsa_plot <- ggplot(burnDS2, aes(TBSA)) + geom_histogram(colour = "white", fill = "black") +
+  theme_bw() + facet_wrap(~DcStat)
+inhale_plot <- ggplot(burnDS2, aes(Inhale, fill = Inhale)) + geom_bar() +
+  theme_bw() + facet_wrap(~DcStat)
+flame_plot <- ggplot(burnDS2, aes(Flame, fill = Flame)) + geom_bar() +
+  theme_bw() + facet_wrap(~DcStat)
+```
+
+## ML - Decision Tree
+
+The dataset was split into training dataset and test dataset.
 
 ```{r}
 sRow <- sample(nrow(burnDS2), nrow(burnDS2)*.7)
@@ -66,85 +115,40 @@ burnDS2_train <- burnDS2[sRow,]
 burnDS2_test <- burnDS2[-sRow,]
 ```
 
+### Training Model
 
-
-# Descriptive Analysis
-
-## Data Summary
-
-The median age of the participant was 31.95 years old (IQR = 49.38), while the median total burn surface area among the participant was 6% (IQR = 13.5%). Most of the participant was male (n = 705), white ethnicity (n = 589), had no inhalation injury (n = 878) and had flame involvement (n = 529)
+The decision tree model was trained with training dataset.
 
 ```{r}
-summary(burnDS2)
+burnDS_dtmod <- rpart(DcStat ~ ., data = burnDS2_train, method = "class",
+                      parms = list(split = "information"))
 ```
-
-The distribution of each variable, grouped by discharge status, shown as below
-
-```{r, message=F}
-ggplot(burnDS2, aes(x=AGE)) + geom_histogram() + facet_wrap(~DcStat)
-ggplot(burnDS2, aes(x=TBSA)) + geom_histogram() + facet_wrap(~DcStat)
-ggplot(burnDS2, aes(x=Gender, fill=Gender)) + geom_bar() + facet_wrap(~DcStat)
-ggplot(burnDS2, aes(x=Ethnic, fill=Ethnic)) + geom_bar() + facet_wrap(~DcStat)
-ggplot(burnDS2, aes(x=Inhale, fill=Inhale)) + geom_bar() + facet_wrap(~DcStat)
-ggplot(burnDS2, aes(x=Flame, fill=Flame)) + geom_bar() + facet_wrap(~DcStat)
-```
-
-# Machine Learning
-
-two type of machine learning will be use to predict the outcome (alive vs death)
-
-1. Decision Tree
-2. Artificial Neural Network
-
-both of the method will be compared by calculating their accuracy.
-
-
-## Machine Learning - Decision Tree
-
-### Decision Tree Model
-
-Using train dataset, the decision tree was as shown below. 
-
-
-```{r}
-burnDS_dtmod <- rpart(DcStat ~ ., data = burnDS2_train, method = "class", parms = list(split = "information"))
-rpart.plot(burnDS_dtmod, type = 1, yesno=2, digits = 4)
-```
-
-
-Note: Each node shows
-
-1. the predicted outcome (Alive or Death)
-2. the predicted probability of Death
-3. the percentage of observations in the node
 
 ### Prediction
 
-the model were tested using test dataset to predict the outcome, as shown below.
+Prediction using the model was done on the test dataset.
 
 ```{r}
 burnDS2_test_dtpred <- predict(burnDS_dtmod, newdata = burnDS2_test, type = "class")
 burnDS2_test_dtpredcomb <- tibble(burnDS2_test, Predicted = burnDS2_test_dtpred)
-burnDS2_test_dtpredcomb %>% select(DcStat, Predicted, everything()) %>% datatable()
 ```
 
+### Evaluation
 
+The decision tree was evaluated, using the prediction with test dataset. Three parameter that will be assessed are
 
-### Model Evaluation
-
-The model was evaluate with test dataset.
+1. Accuracy
+2. Recall / Sensitivity
+3. Precision / Positive Predictive Value
 
 ```{r}
-dteval_res <- confusionMatrix(burnDS2_test_dtpredcomb$Predicted, burnDS2_test_dtpredcomb$DcStat, positive = "Death")
-dteval_res
+dteval_res <- confusionMatrix(burnDS2_test_dtpredcomb$Predicted, burnDS2_test_dtpredcomb$DcStat,
+                              positive = "Death")
 ```
 
-The model had good accuracy with `r round((dteval_res$overall['Accuracy'])*100,1)`% and high specificity (`r round((dteval_res$byClass['Specificity'])*100,1)`%), but with lower sensitivity (`r round((dteval_res$byClass['Sensitivity'])*100,1)`%).
+### 10-fold cross-validation
 
-
-### 10-fold cross validation
-
-The model was done with 10-fold cross validation
+10-fold cross-validation will be done to the decision tree, to calculate average accuracy.
 
 ```{r}
 k <- 10
@@ -167,26 +171,40 @@ for (i in 1:k) {
 }
 ```
 
-The 10-fold cross validation show accuracy of `r sprintf("%1.1f%%", 100*dtaccuracy)` for each of the fold respectively. the average accuracy was `r sprintf("%1.1f%%", 100*mean(dtaccuracy))`
+## ML - Artificial Neural Network
 
-## Machine Learning - Artificial Neural Network
+For Artificial Neural Network, the data will be scaled first
 
-### Artificial Neural Network Model
+```{r}
+maxscale <- apply(burnDS0, 2, max)
+minscale <- apply(burnDS0, 2, min)
+burnDS0_1 <- as.data.frame(scale(burnDS0, center = minscale, scale = maxscale - minscale)) 
 
-Using train dataset, the Artificial Neural Network Model was as shown below
+burnDS1 <- burnDS0_1 %>%
+  mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")), Gender = GENDER,
+         Ethnic = RACEC, Inhale = INH_INJ, Flame = FLAME) %>%
+  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+```
 
+The dataset split into training dataset and test dataset
 
 ```{r}
 burnDS1_train <- burnDS1[sRow,]
 burnDS1_test <- burnDS1[-sRow,]
-
-burnDS_annmod <- neuralnet(DcStat ~ AGE + Gender + Ethnic + TBSA + Inhale + Flame, data = burnDS1_train, hidden=2, linear.output = FALSE)
-plot(burnDS_annmod, rep = "best")
 ```
 
-the model were tested using test dataset to predict the outcome, as shown below.
+### Training Model
+
+The artificial neural network model was trained with training dataset. For this report, there will be two hidden layer.
+
+```{r}
+burnDS_annmod <- neuralnet(DcStat ~ AGE + Gender + Ethnic + TBSA + Inhale + Flame,
+                           data = burnDS1_train, hidden=2, linear.output = FALSE)
+```
 
 ### Prediction
+
+Prediction using the model was done on the test dataset.
 
 ```{r}
 burnDS1_test_annpred0 <- predict(burnDS_annmod, burnDS1_test, type = "class")
@@ -195,28 +213,26 @@ burnDS1_test_annpred1 <- apply(burnDS1_test_annpred0, 1, which.max)
 burnDS1_test_annpred1[burnDS1_test_annpred1==1]='Alive'
 burnDS1_test_annpred1[burnDS1_test_annpred1==2]='Death'
 
-
 burnDS1_test_annpredcomb <- tibble(burnDS1_test, Predicted = as.factor(burnDS1_test_annpred1)) %>%
   mutate(DcStat = as.factor(DcStat))
-burnDS1_test_annpredcomb %>% select(DcStat, Predicted, everything()) %>% datatable()
 ```
 
-### Model Evaluation
+### Evaluation
 
-The model was evaluated using test dataset
+The artificial neural network was evaluated, using the prediction with test dataset. Similar with the decision tree model, three parameter that will be assessed
+
+1. Accuracy
+2. Recall / Sensitivity
+3. Precision / Positive Predictive Value
 
 ```{r}
-anneval_res <- confusionMatrix(burnDS1_test_annpredcomb$Predicted, burnDS1_test_annpredcomb$DcStat, positive = "Death")
-anneval_res
+anneval_res <- confusionMatrix(burnDS1_test_annpredcomb$Predicted, burnDS1_test_annpredcomb$DcStat,
+                               positive = "Death")
 ```
 
+### 10-fold cross-validation
 
-The model had good accuracy with `r round((anneval_res$overall['Accuracy'])*100,1)`%, high specificity (`r round((anneval_res$byClass['Specificity'])*100,1)`%), and high sensitivity (`r round((anneval_res$byClass['Sensitivity'])*100,1)`%).
-
-
-### 10-fold cross validation
-
-The model was done with 10-fold cross validation
+10-fold cross-validation will be done to the artificial neural network, to calculate average accuracy.
 
 ```{r}
 k <- 10
@@ -237,14 +253,13 @@ for (i in 1:k) {
   annconfmat <- table(apply(annresults,1,which.max), test$DcStat)
   annaccuracy[i] <- sum(diag(annconfmat))/sum(annconfmat)
 }
-
 ```
 
-The 10-fold cross validation show accuracy of `r sprintf("%1.1f%%", 100*annaccuracy)` for each of the fold respectively. the average accuracy was `r sprintf("%1.1f%%", 100*mean(annaccuracy))`
+## Prediction Comparison
 
-## Comparison
+Prediction for new dataset for both decision tree and artificial neural network were done to show simple comparison of outcome.
 
-To compare both model, the models were tested with new dataset which contain parameter as shown below
+The new dataset is shown below, which contain 
 
 ```{r}
 newds2 <- expand.grid(AGE = c(20,80), Gender = 1, Ethnic = 1, TBSA = c(5,35), Inhale = 1, Flame = c(0,1))
@@ -254,46 +269,206 @@ newds2cat <- newds2 %>%
          Inhale = factor(Inhale, labels = "Yes"),
          Flame = factor(Flame, labels = c("No", "Yes"))) %>%
   select(AGE, Gender, Ethnic, TBSA, Inhale, Flame) 
-kable(newds2cat)
+newds2cat
 ```
 
-table below show the predicted outcome, for both decision tree model and artificial network.
+For artificial neural network, prediction done with the new dataset with scaled on the original scale use for artificial network model
 
 ```{r}
-preddt <- predict(burnDS_dtmod, newds2cat, type = "class")
+newds1 <- expand.grid(AGE = c(scale(20, center = min(burnDS0$AGE), scale = max(burnDS0$AGE) - min(burnDS0$AGE))[1,1],scale(80, center = min(burnDS0$AGE), scale = max(burnDS0$AGE) - min(burnDS0$AGE))[1,1]), Gender = 1, Ethnic = 1, TBSA = c(scale(5, center = min(burnDS0$TBSA), scale = max(burnDS0$TBSA) - min(burnDS0$TBSA))[1,1],scale(35, center = min(burnDS0$TBSA), scale = max(burnDS0$TBSA) - min(burnDS0$TBSA))[1,1]), Inhale = 1, Flame = c(0,1))
+newds1
+```
 
-predann <- apply(predict(burnDS_annmod, newds2, type = "class"), 1, which.max)
-predann[predann==1]='Alive'
-predann[predann==2]='Death'
+Prediction for new dataset for both decision tree and artificial neural network were combine to show the differences (or similarity)
 
-comres <- tibble(newds2cat, dtpred = as.factor(preddt), annpred = as.factor(predann))
-kable(comres)
+```{r}
+newds2cat_pred <- predict(burnDS_dtmod, newdata = newds2cat, type = "class")
+
+newds1_pred <- apply(predict(burnDS_annmod, newdata = newds1, type = "class"), 1, which.max)
+newds1_pred[newds1_pred==1]='Alive'
+newds1_pred[newds1_pred==2]='Death'
+
+comparison_dt <- tibble(`Predicted DT` = newds2cat_pred, `Predicted ANN` = as.factor(newds1_pred), newds2cat)
 ```
 
 
-When comparing the 10-fold cross-validation, refer [link]() and [link](), artificial neural network had higher average accuracy, however there are some of the fold in the ann had 0% accuracy.
+# Result
+
+## Data Summary
+
+Below were the summary of the data
+
+```{r, results='asis'}
+print(summary_table(burnDS2, data_sum), rtitle = "Variables", cnames = c("Median (Q1, Q3) / n (%)"))
+```
+
+
+The median age of the participant was `r median(burnDS2$AGE)` years old (IQR = `r IQR(burnDS2$AGE)`), while the median total burn surface area among the participant was `r median(burnDS2$TBSA)`% (IQR = `r IQR(burnDS2$TBSA)`%). Most of the participant was male (n = `r count(burnDS2, 3)[2,2]`), white ethnicity (n = `r count(burnDS2, 4)[2,2]`), had no inhalation injury (n = `r count(burnDS2, 6)[1,2]`) and had flame involvement (n = `r count(burnDS2, 7)[2,2]`)
+
+Below are the plot of each variable, grouped by discharge status
+```{r, warning=F}
+dcstat_plot
+age_plot
+gender_plot
+ethnic_plot
+tbsa_plot
+inhale_plot
+flame_plot
+```
+
+
+## Machine Learning - Decision Tree
+
+### Decision Tree Model
+
+The decision tree was shown below. 
+
+```{r}
+rpart.plot(burnDS_dtmod, type = 1, yesno=2, digits = 4)
+```
+
+
+Note: Each node shows
+
+1. the predicted outcome (Alive or Death)
+2. the predicted probability of Death
+3. the percentage of observations in the node
+
+### Prediction
+
+the model were tested using test dataset to predict the outcome, as shown below.
+
+```{r}
+burnDS2_test_dtpredcomb %>% select(DcStat, Predicted, everything())
+```
+
+
+
+### Model Evaluation
+
+The model was evaluate with test dataset.
+
+```{r}
+dteval_res
+```
+
+The model had good accuracy (`r round((dteval_res$overall['Accuracy'])*100,1)`%) and high precision / positive predictive value (`r round((dteval_res$byClass['Pos Pred Value'])*100,1)`%), but with lower recall / sensitivity (`r round((dteval_res$byClass['Sensitivity'])*100,1)`%).
+
+
+### 10-fold cross validation
+
+The accuracy for each of the fold in the 10-fold cross validation was shown below.
+
+```{r}
+dtaccuracy
+```
+
+The 10-fold cross validation for decision tree show accuracy ranging `r sprintf("%1.1f%%", 100*min(dtaccuracy))` to `r sprintf("%1.1f%%", 100*max(dtaccuracy))` for each of the fold respectively. the average accuracy was `r sprintf("%1.1f%%", 100*mean(dtaccuracy))`
+
+## Machine Learning - Artificial Neural Network
+
+### Artificial Neural Network Model
+
+The artificial neural network (and the parameter) was shown below
+
+```{r}
+plot(burnDS_annmod, rep = "best")
+```
+
+the model were tested using test dataset to predict the outcome, as shown below.
+
+### Prediction
+
+```{r}
+
+burnDS1_test_annpredcomb %>% select(DcStat, Predicted, everything())
+```
+
+### Model Evaluation
+
+The model was evaluated using test dataset
+
+```{r}
+anneval_res
+```
+
+
+The model had good accuracy (`r round((anneval_res$overall['Accuracy'])*100,1)`%), but lower recall / sensitivity (`r round((anneval_res$byClass['Sensitivity'])*100,1)`%) and lower precision / positive predictive value (`r round((anneval_res$byClass['Pos Pred Value'])*100,1)`%), and high 
+
+
+### 10-fold cross validation
+
+The model was done with 10-fold cross validation
+
+```{r}
+annaccuracy
+```
+
+The 10-fold cross validation for artificial neural network model show accuracy ranging `r sprintf("%1.1f%%", 100*min(annaccuracy))` to `r sprintf("%1.1f%%", 100*max(annaccuracy))` for each of the fold respectively. The average accuracy was `r sprintf("%1.1f%%", 100*mean(annaccuracy))`
+
+## Model Comparison
+
+### Comparing the 10-fold cross validation
+
+The accuracy of 10-fold cross validation for decision tree model were
+
+```{r}
+dtaccuracy
+```
+
+The accuracy of 10-fold cross validation for artificial neural network model were
+
+```{r}
+annaccuracy
+```
+
+
+When comparing the 10-fold cross-validation, decision tree model had higher average accuracy (`r sprintf("%1.1f%%", 100*mean(dtaccuracy))`) vs artificial neural network average accuracy (`r sprintf("%1.1f%%", 100*mean(annaccuracy))`).
+
+### Comparing agreement between two method
+
+there were also different predicted outcome (from test dataset) between the two model
+
+```{r}
+agree_res <- confusionMatrix(burnDS2_test_dtpred, as.factor(burnDS1_test_annpred1), positive = "Death")
+agree_res
+```
+
+While they dont perfectly agree with each other, both the model had good agreement with Kappa = `r round((agree_res$overall['Kappa'])*100,1)`%
+
+### Comparing the predicted outcome with new dataset
+
+Below is the predicted outcome for both decision tree model and artificial neural network model, when tested with specified new dataset
+
+```{r}
+comparison_dt
+```
 
 
 # Discussion
 
-- which more accurate?
+There are several classification for machine learning, including supervised learning, unsupervised learning and reinforcement learning. Logistic Regression, Decisional Tree and Artificial Network are part of supervised machine learning. With stronger processing power of current computer, more and more researchers interested in machine learning, including in the field of medical.
 
-- why have different prediction
+Supervised machine learning compute the relationship based on available information. Logistic regression use a logistic function to model a binary dependent variable. Logistic regression is parametric analysis because it assume the relationship between predictor and the outcome (logit transformation) was linear and normally distributed. Meanwhile, decision tree operate using tree-like model of decision and their possible consequence, which include the chance of event outcomes, by calculating entropy and information gain. As the name implies, artificial neural network was loosely inspired by biologic neural network. It was an adaptive system with ability to change the internal structure by adjusting weights of inputs, based on the function and back, through multiple loop until it reach convergence or epoch.
+
+Since there are fundamental different on how the parameter is measured, it is expected that different machine learning model may have different outcome. Most of the machine learning also depend on the input feed upon the machine learning method, thus no method superior to other method and applicable to all data.
+
+While machine learning is very compelling, but many of the machine learning operate via "black-box". The researcher feed the input and parameter, and computer will compute the outcome. This however may create problem where the process of the analysis is very difficult to explain. In logistic regression, researcher may identify which factors that have effect on the outcome, however, in other machine learning method (e.g. decision tree and neural network), all variables were taken account, hence not suitable for exploratory study, to find the important factor. (Watson et. al., 2019)
+
+As compared to decision tree, artificial neural network can only operate in numerical predictor. Any categorical predictor need to change to numerical code. In addition to that, the predictor value need to be normalized, because different scale for different variables may impair the prediction accuracy (Jayalakshmi & Santhakumaran, 2011).
 
 
 # Conclusion
 
+Various machine learning available to predict the outcome, however it is difficult to identify which factor that really have affect on the outcome due to many of the machine learning method operate as "black-box".
+
 # Reference
 
+Jayalakshmi, T., & Santhakumaran, A. (2011). Statistical normalization and back propagation for classification. International Journal of Computer Theory and Engineering, 3(1), 1793-8201.
 
-# Additional Info
+Watson, D. S., Krutzinna, J., Bruce, I. N., Griffiths, C. E., McInnes, I. B., Barnes, M. R., & Floridi, L. (2019). Clinical applications of machine learning algorithms: beyond the black box. BMJ (Clinical research ed.), 364, l886. https://doi.org/10.1136/bmj.l886
 
-```{r}
-
-```
-
-
-
+# Session Info
 
 ```{r}
 sessionInfo()
