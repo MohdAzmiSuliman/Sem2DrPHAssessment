@@ -1,10 +1,10 @@
 ---
 title: "Assignment - Structural Equation Modelling"
 author: "Dr Mohd Azmi P-UD 0079/19"
-date: '`r format(Sys.Date(), "%d %B, %Y")`'
+date: '`r format(Sys.Date(), "%d %B %Y")`'
 output: 
   html_document:
-    code_folding: hide
+    df_print: paged
     toc: true
     toc_float:
       collapsed: false
@@ -24,73 +24,87 @@ Every student will encounter difficulty during their study. In addition to being
 
 There are several questionnaire tools that can be use to measure both 1) the level of stress, and 2) specific cause of stress.
 
-PSQ have been use to measure what are the domain that causing stress (stressor domains), which include
+Postgraduate Stressor Questionnaire (PSQ) have been used to measure the domain that causing stress (stressor domains), which include
 
-1. academic stressor
-2. work-family
-3. job prospect
+1. Academic stressor
+2. Performance pressure stressor
+3. Work-family conflict stressor
+4. Bureaucratic constraint stressor
+5. Poor relationship with superior stressor
+6. Poor relationship with colleagues stressor
+7. Poor job propect
 
-One of common tools that use to measure stress score is PSS. while the final score is actually only one domain, but for this assignment purpose, the score was group into positive score (questions that will have high score for high stress), and negative score (questionas tha will have low score for high stress).
+PSQ consist of 28 questions, with score ranging from 0 to 4.
 
-In this assignment, the research would like to measure the effect of different stressors to the stress score.
+Perceived Stress Scale (PSS) have been used to measure perceived stress. It comprise of 10 questions, with some of the questions were positive scoring (higher score reflect higher perceived stress) and some of the question were negative scoring. PSS score ranging 0 to 4.
+
+In this assignment, the research would like to measure the effect of different stressors to the stress score, among MMED candidates in USM Anaesthesiology Department.
 
 SEM allow researcher to find the complex relationship between exogenous and endogenous variables, both observed and latent variables.
 
 
-# Environment
+# Analysis
 
 ## Packages
 
+These are packages used for this report
+
 ```{r}
 library(pacman) # package manager, elegant way to load packages
-p_load(haven, tidyverse, semTools, semPlot, DT)  
-       
+p_load(haven, tidyverse, semTools, semPlot, summarytools, qwraps2, ggbeeswarm, broom)  
 ```
 
 ## Dataset & Data Exploration
 
-Data was saved in SPSS save file, imported to R
+Data was saved in SPSS save file, imported to R. Below are the dataset
 
 ```{r}
-stressds <- read_sav("SEMstress.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
-stressds %>% datatable(fillContainer = T)
+stressds <- read_sav("SEMstress.sav") %>% mutate_if(is.labelled, ~(as_factor(.))) %>% na.omit()
+stressds
 ```
 
+Data exploration was done to had the overview of the data and ensure no data error or data missing.
 
-# Analysis & Result
-
-## Descriptive
-
-### Sociodemographic
-
-Descriptive analysis was done on sociodemographic data, was shown below. 
-
-```{r, results='asis'}
-#demo_sum <- list("Gender" = list("Male" = ~ n_perc0(.data$Gender == "Male"),
-#                                 "Female" = ~ n_perc0(.data$Gender == "Female")),
-#                 "Age (years)" = list("Mean (SD)" = ~ mean_sd(.data$Age, denote_sd = "paren")),
-#                 "Ethnicity" = list("Malay" = ~ n_perc0(.data$Race == "Malay"),
-#                                    "Non-Malay" = ~ n_perc0(.data$Race == "Non-Malay")),
-#                 "comorbidities (status)" = list("Yes" = ~ n_perc0(.data$CM == "Yes"),
-#                                               "No" = ~ n_perc0(.data$CM == "No")),
-#                 "DM (status)" = list("Yes" = ~ n_perc0(.data$CMDM == "DM"),
-#                                      "No" = ~ n_perc0(.data$CMDM == "No")),
-#                 "Hypertension (status)" = list("Yes" = ~ n_perc0(.data$CMHPT == "HPT"),
-#                                                "No" = ~ n_perc0(.data$CMHPT == "No")),
-#                 "Ischaemic Heart Disease (status)" = list("Yes" = ~ n_perc0(.data$CMIHD == "IHD"),
-#                                                           "No" = ~ n_perc0(.data$CMIHD == "No")))
-#print(summary_table(pdcds1, demo_sum), rtitle = "Variables", cnames = c("Mean (SD) / n (%)"))
+```{r, eval=F}
+descr(stressds, stats = c("min", "max", "n.valid"))
 ```
 
+## Score - Outcomes
 
-### Score - Outcomes
+The outcomes of each questionaires were presented using summary and bee swarm chart to visualize the distribution of the score.
 
+```{r}
+data_summary <- list("PSQ: Q1" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q1s)),
+                     "PSQ: Q2" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q2s)),
+                     "PSQ: Q7" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q7s)),
+                     "PSQ: Q8" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q8s)),
+                     "PSQ: Q11" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q11s)),
+                     "PSQ: Q13" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q13s)),
+                     "PSQ: Q15" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q15s)),
+                     "PSQ: Q16" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q16s)),
+                     "PSQ: Q20" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q20s)),
+                     "PSQ: Q22" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q22s)),
+                     "PSQ: Q24" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q24s)),
+                     "PSQ: Q28" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSQ_Q28s)),
+                     "PSS: Q1" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q1s)),
+                     "PSS: Q2" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q2s)),
+                     "PSS: Q3" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q3s)),
+                     "PSS: Q4" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q4s)),
+                     "PSS: Q5" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q5s)),
+                     "PSS: Q6" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q6s)),
+                     "PSS: Q7" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q7s)),
+                     "PSS: Q8" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q8s)),
+                     "PSS: Q9" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q9s)),
+                     "PSS: Q10" = list("Median (Q1, Q3)" = ~ median_iqr(.data$PSS_Q10s)))
 
+pssds_long <- stressds %>%
+  select(ID, contains("PSS_Q") & ends_with("s")) %>%
+  gather(key = PSS, value = score, PSS_Q1s:PSS_Q10s, factor_key = T)
 
-```{r, results='asis'}
-
+pss_plot <- pssds_long %>%
+  filter(PSS == c("PSS_Q1s", "PSS_Q2s", "PSS_Q3s", "PSS_Q6s", "PSS_Q6s", "PSS_Q10s")) %>%
+  ggplot(aes(score, y= PSS, fill = PSS)) + geom_violin() + coord_flip() + ylab("PSS Positive Score")
 ```
-
 
 ## Structural Equation Model
 
@@ -99,34 +113,84 @@ In this dataset, the variables are
 
 1. 3 latent independent factors
   + Academic Domain, which measured by 4 independent observed variables
-    - PSQ_Q1:
-    - PSQ_Q11
-    - PSQ_Q20
-    - PSQ_Q28
+    - PSQ_Q1: Test/examination
+    - PSQ_Q11: Lack of time to review what have been learnt
+    - PSQ_Q20: Having difficulty understanding the content
+    - PSQ_Q28: Large amount of content to be learnt
+
+```{r}
+modacad <- "
+acad =~ PSQ_Q1s + PSQ_Q11s + PSQ_Q20s + PSQ_Q28s
+"
+semPaths(sem(modacad, data = stressds), whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 4, sizeMan = 10, sizeLat = 12)
+```
+
+
   + Work-family domain
-    - PSQ_Q2s
-    - PSQ_Q8s
-    - PSQ_Q16s
-    - PSQ_Q24s
+    - PSQ_Q2: Work demands affect my personal/home life
+    - PSQ_Q8: Advancing a career at the expense of home/personal life
+    - PSQ_Q16: My life is too centered on my work
+    - PSQ_Q24: Absence of emotional support from family
+
+```{r}
+modwfam <- "
+wfam =~ PSQ_Q2s + PSQ_Q8s + PSQ_Q16s + PSQ_Q24s
+"
+semPaths(sem(modwfam, data = stressds), whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 4, sizeMan = 10, sizeLat = 12)
+```
+
   + Performance pressure
-    - PSQ_Q7s
-    - PSQ_Q13s
-    - PSQ_Q15s
-    - PSQ_Q22s
+    - PSQ_Q7: Time pressures and deadlines to meet
+    - PSQ_Q13: Work overload
+    - PSQ_Q15: Fear of making mistakes that can lead to serious consequences
+    - PSQ_Q22: My work is mentally straining
+
+```{r}
+modperf <- "
+perf =~ PSQ_Q7s + PSQ_Q13s + PSQ_Q15s + PSQ_Q22s
+"
+semPaths(sem(modperf, data = stressds), whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 4, sizeMan = 10, sizeLat = 12)
+```
+
 2. 2 latent dependent factors
   + Positive Score, which measured by 6 dependent observed variables
-    - PSS_Q1s
-    - PSS_Q2s
-    - PSS_Q3s
-    - PSS_Q6s
-    - PSS_Q9s
-    - PSS_Q10s
-  + Negative Score, which measured by 4 dependent observed variables
-    - PSS_Q4s
-    - PSS_Q5s
-    - PSS_Q7s
-    - PSS_Q8s
+    - PSS_Q1: how often have you been upset because of something that happened unexpectedly?
+    - PSS_Q2: how often have you felt that you were unable to control the important things in your life?
+    - PSS_Q3: how often have you felt nervous and “stressed”?
+    - PSS_Q6: how often have you found that you could not cope with all the things that you had to do?
+    - PSS_Q9: how often have you been angered because of things that were outside of your control?
+    - PSS_Q10: how often have you felt difficulties were piling so high that you could not overcome them?
 
+```{r}
+modposps <- "
+posstr =~ PSS_Q1s + PSS_Q2s + PSS_Q3s + PSS_Q6s + PSS_Q9s + PSS_Q10s
+"
+semPaths(sem(modposps, data = stressds), whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 2, sizeMan = 10, sizeLat = 12)
+```
+
+  + Negative Score, which measured by 4 dependent observed variables
+    - PSS_Q4: how often have you felt confident about your ability to handle your personal problems?
+    - PSS_Q5: how often have you felt that things were going your way?
+    - PSS_Q7: how often have you been able to control irritations in your life?
+    - PSS_Q8: how often have you felt that you were on top of things?
+
+```{r}
+modnegps <- "
+negstr =~ PSS_Q4s + PSS_Q5s + PSS_Q7s + PSS_Q8s
+"
+semPaths(sem(modnegps, data = stressds), whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 2, sizeMan = 10, sizeLat = 12)
+```
+
+The structure was shown below, where
+
+1. the three latent independent factors had causal relation ship with the two latent dependent factor
+2. the three latent independent factors had correlation or covariance
+3. the two latent dependent factors had correlation or covariance
 
 ```{r}
 modful <- "
@@ -136,67 +200,213 @@ acad =~ PSQ_Q1s + PSQ_Q11s + PSQ_Q20s + PSQ_Q28s
 wfam =~ PSQ_Q2s + PSQ_Q8s + PSQ_Q16s + PSQ_Q24s
 perf =~ PSQ_Q7s + PSQ_Q13s + PSQ_Q15s + PSQ_Q22s
 posstr + negstr ~ acad + wfam + perf
-
 "
 
 sem_modful <- sem(modful, data = stressds)
+semPaths(sem_modful, what = "path", whatLabels = "no", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 2)
 ```
 
+## Model Fit Assessment
 
-the plot (with standardized estimate shown) is as below
+Model fit will be assess using various parameter, including
+
+1. chi-sq
+2. Comparative Fit Index (CFI)
+3. Tucker Lewis Index (TLI)
+4. Standardised Root Mean Square Residual (SRMR)
+5. Root Mean Square Error of Approximation (RMSEA)
 
 ```{r}
-semPaths(sem_modful, what = "par", whatLabels = "std", edge.color = "black", layout = "tree2", residuals = F, rotation = 2)
+sem_modful_fit <- fitMeasures(sem_modful, c("chisq", "df", "pvalue", "cfi", "tli", "srmr", "rmsea"), output = "text")
 ```
 
-in this model, the unstandardized regression coefficient for academic on positive score was `r round(sem_modful_res$PE [23,5],2)`, which mean for each increase of 1 unit of academic stressor, there will be increase of `r round(sem_modful_res$PE [23,5],2)` unit of positive stress score. the standardized regression coefficeint was `r round(sem_modful_res$PE [23,10],2)` - which mean for every increase of 1 standard deviation of academic stressor latent variable, there will be increase of `r round(sem_modful_res$PE[23,10],2)` standard deviation of positive stress latent score variable.
-
-the full estimate (unstandardized coefficient), and r-square value as below
+Eventhough this is confirmatory model, modification indices were measured too.
 
 ```{r}
-summary(sem_modful, fit.measures = F, standardized = T, rsquare = T, header = F)
-```
-
-the standardized estimate as below
-
-```{r}
-standardizedSolution(sem_modful) %>% datatable() %>% formatRound(4:10, digits = 3) 
-```
-
-
-### Model Fit Assessment
-
-```{r}
-fitMeasures(sem_modful, c("chisq", "df", "pvalue", "cfi", "tli", "srmr", "rmsea"), output = "text")
-```
-
-CFI was low, however other model fit parameter show the model was fit.
-
-```{r}
-modindices(sem_modful) %>% filter(mi >= 3.86)
+sem_modful_mi <- modindices(sem_modful) %>% filter(mi >= 3.86)
 ```
 
 there are several path that have modification indexes higher than 3.84, however since this is confirmatory model, no modification will be done to the SEM path.
 
+## Additional - Linear Regression
 
+To have an idea of the relationship between independent factors and dependent factors, the SEM will be compared with linear regression
+
+```{r}
+stressds_lmds <- stressds %>% mutate(posstr = PSS_Q1s + PSS_Q2s + PSS_Q3s + PSS_Q6s + PSS_Q9s + PSS_Q10s, 
+                                     negstr = PSS_Q4s + PSS_Q5s + PSS_Q7s + PSS_Q8s,
+                                     acad = PSQ_Q1s + PSQ_Q11s + PSQ_Q20s + PSQ_Q28s,
+                                     wfam = PSQ_Q2s + PSQ_Q8s + PSQ_Q16s + PSQ_Q24s,
+                                     perf = PSQ_Q7s + PSQ_Q13s + PSQ_Q15s + PSQ_Q22s)
+
+lm_posstr <- lm(posstr ~ acad + acad + wfam + perf, data = stressds_lmds)
+lm_negstr <- lm(negstr ~ acad + acad + wfam + perf, data = stressds_lmds)
+```
+
+
+# Result
+
+## Outcomes
+
+The summary of the PSS score and PSQ score among the participants were summarised below.
+
+```{r, results='asis'}
+print(summary_table(stressds, data_summary), rtitle = "Question No.", cnames = c("Median (Q1, Q3)"))
+```
+
+The distribution of PSS score and PSQ score were visualize in beeswarm plot below.
+
+1. PSS Positive Score
+
+```{r}
+pssds_long <- stressds %>%
+  select(ID, contains("PSS_Q") & ends_with("s")) %>%
+  gather(key = PSS, value = score, PSS_Q1s:PSS_Q10s, factor_key = T)
+
+pssds_long %>%
+  filter(PSS == c("PSS_Q1s", "PSS_Q2s", "PSS_Q3s", "PSS_Q6s", "PSS_Q6s", "PSS_Q10s")) %>%
+  ggplot(aes(score, y= PSS, colour = PSS)) + geom_quasirandom(groupOnX = F) +
+  coord_flip() + ylab("PSS Positive Score") + theme_bw()
+```
+
+2. PSS Negative Score
+
+```{r}
+pssds_long %>%
+  filter(PSS == c("PSS_Q4s", "PSS_Q5s","PSS_Q7s", "PSS_Q8s")) %>%
+  ggplot(aes(score, y= PSS, colour = PSS)) + geom_quasirandom(groupOnX = F) + 
+  coord_flip() + ylab("PSS Negative Score") + theme_bw()
+```
+
+3. PSQ: Academic Domain
+
+```{r}
+psqds_long <- stressds %>%
+  select(ID, contains("PSQ_Q") & ends_with("s")) %>%
+  gather(key = PSS, value = score, PSQ_Q1s:PSQ_Q28s, factor_key = T)
+
+psqds_long %>%
+  filter(PSS == c("PSQ_Q1s", "PSQ_Q11s", "PSQ_Q20s", "PSQ_Q28s")) %>%
+  ggplot(aes(score, y= PSS, colour = PSS)) + geom_quasirandom(groupOnX = F) +
+  coord_flip() + ylab("PSQ - Academic Domain") + theme_bw()
+```
+
+4. PSQ: Work-family Domain
+
+```{r}
+psqds_long %>%
+  filter(PSS == c("PSQ_Q2s", "PSQ_Q8s", "PSQ_Q16s", "PSQ_Q24s")) %>%
+  ggplot(aes(score, y= PSS, colour = PSS)) + geom_quasirandom(groupOnX = F) +
+  coord_flip() + ylab("PSQ - Work-family Domain") + theme_bw()
+```
+
+5. PSQ: Performance Pressure Domain
+
+```{r}
+psqds_long %>%
+  filter(PSS == c("PSQ_Q7s", "PSQ_Q13s", "PSQ_Q15s", "PSQ_Q22s")) %>%
+  ggplot(aes(score, y= PSS, colour = PSS)) + geom_quasirandom(groupOnX = F) +
+  coord_flip() + ylab("PSQ - Performance Domain") + theme_bw()
+
+```
+
+## SEM Plot
+
+The relationship and their parameter of the SEM were visualized below
+
+```{r}
+semPaths(sem_modful, what = "par", whatLabels = "std", edge.color = "black",
+         layout = "tree2", residuals = F, rotation = 2, edge.label.cex = 1)
+```
+
+## SEM Estimates
+
+the full estimate (unstandardized coefficient), and r-square value as below
+
+```{r}
+sem_modful_res <- summary(sem_modful, fit.measures = F, standardized = T, rsquare = T, header = F)
+```
+
+in this model, the unstandardized regression coefficient for academic on positive score was `r round(sem_modful_res$PE [23,5],2)`, which mean for each increase of 1 unit of academic stressor, there will be increase of `r round(sem_modful_res$PE [23,5],2)` unit of positive stress score. the standardized regression coefficeint was `r round(sem_modful_res$PE [23,10],2)` - which mean for every increase of 1 standard deviation of academic stressor latent variable, there will be increase of `r round(sem_modful_res$PE[23,10],2)` standard deviation of positive stress latent score variable.
+
+the standardized estimate (with 95% CI) was shown below
+
+```{r}
+standardizedSolution(sem_modful) %>% select(-c(se, z)) %>% relocate(pvalue, .after = last_col()) 
+```
+
+There are 6 regression relationship between the three latent independent factors with the two latent dependent factors. However all the relationship was not significant, as shown below.
+
+```{r}
+standardizedSolution(sem_modful) %>% select(-c(se, z)) %>% relocate(pvalue, .after = last_col()) %>% filter(op == "~")
+```
+
+Otherwise all the factor loading relationship between observed factors and latent factors were significant, as shown below
+
+```{r}
+standardizedSolution(sem_modful) %>% select(-c(se, z)) %>% relocate(pvalue, .after = last_col()) %>% filter(op == "=~")
+```
+
+
+## Model Fit Assessment
+
+### Model Fit Parameter
+
+Model Fit parameter was shown below
+
+```{r}
+sem_modful_fit
+```
+
+CFI was low, however other model fit parameter show the model was fit.
+
+### Modification Indices
+
+Modification Indices was shown below
+
+```{r}
+sem_modful_mi
+```
+
+there are several path that have modification indexes higher than 3.84, however since this is confirmatory model, no modification will be done to the SEM path.
+
+## Additional - Comparison with Linear Regression Parameter
+
+The linear regression between positive PSS score with PSQ domain as shown below
+```{r}
+tidy(lm_posstr, conf.int = T) %>% select(term, estimate, conf.low, conf.high, p.value)
+```
+
+The linear regression between total positive PSS score and total PSQ score for the 3 domain, show that domain work family had significant association with total positive PSS score.
+
+
+The linear regression between negative PSS score with PSQ domain as shown below
+
+```{r}
+tidy(lm_negstr, conf.int = T) %>% select(term, estimate, conf.low, conf.high, p.value)
+```
+
+The linear regression between total negative PSS score and total PSQ score for the 3 domain, show that domain work family had significant association with total negative PSS score.
 
 # Discussion
 
+Both PSS and PSQ had been validated, so it is unsurprisingly that all the factor loading between latent and observed variable were significant. In this research, factor loading for PSS were between and for PSQ were between, which similar with
 
+However, the SEM in this study show that there was no significant relationship between PSS domain and PSQ domain. There are are some explanation, including
+
+1. In the SEM, estimation for each relationship between each item of PSS and PSQ were measured directly using complex SEM structure. thus each of the parameter were adjusted with each other value. In linear regression model, the score for positive PSS, negative PSS and each of the PSQ domain were calculated (by sum all the score for each domain), and thus it each of the item were assumed to have same effect. In SEM, the factor loading were calculated for each latent factors, rather than directly sum the score (as in the linear regression model)
+
+2. there are unexplained factors that actually affect the perceived stress, rather than the PSQ domains.
 
 # Conclusion
+
+While PSQ may affect the perceived stress, however, there might be other factors that may explain the preceived stress better.
 
 # Reference
 
 
-# Additional Info
-
-```{r}
-
-```
-
-
-
+# SessionInfo
 
 ```{r}
 sessionInfo()
