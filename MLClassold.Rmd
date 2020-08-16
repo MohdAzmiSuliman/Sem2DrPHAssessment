@@ -36,7 +36,7 @@ set.seed(119)
 ```{r}
 delnotids <- read_sav("classdsfin2.sav") %>% mutate_if(is.labelled, ~(as_factor(.)))
 #delnotids <- delnotids0[sample(47295, 5000),]
-#delnotids %>% select(-id) %>% datatable()
+#delnotids %>% dplyr::select(-id) %>% datatable()
 ```
 
 ```{r}
@@ -80,7 +80,7 @@ text(delnoti_dtmod)
 ```{r}
 delnotids_test_pred <- predict(delnoti_dtmod, newdata = delnotids_test, type = "class")
 delnotids_test_predcomb <- tibble(delnotids_test, Predicted = delnotids_test_pred)
-delnotids_test_predcomb %>% select(DelayCode, Predicted, Disease, NotiReqCode, FaciCollapseCode, DxWeekdayRecode, CaseClassReCode, DxStatRecodeNoMissing, ACDPCDReCode, CaseRegisterCode, Region, QuarterCode)
+delnotids_test_predcomb %>% dplyr::select(DelayCode, Predicted, Disease, NotiReqCode, FaciCollapseCode, DxWeekdayRecode, CaseClassReCode, DxStatRecodeNoMissing, ACDPCDReCode, CaseRegisterCode, Region, QuarterCode)
 ```
 
 

@@ -98,7 +98,7 @@ Logit 1 - Early vs Late
 ```{r}
 mulnomlog1ds <- ordds %>% filter(NotiDurCode == c("Early", "Late"))
 logreglog1 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog1ds, family = "binomial")
-logreglog1aug <- augment(logreglog1, type.predict = "response", type.residual = "response") %>%
+logreglog1aug <- augment(logreglog1, type.predict = "response") %>%
   mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
                        labels = c("Early", "Late")))
 logreglog1aug_accuracy <- confusionMatrix(logreglog1aug$PredCat, logreglog1aug$NotiDurCode, positive = "Late")
@@ -110,7 +110,7 @@ Logit 2 - Expected vs Late
 ```{r}
 mulnomlog2ds <- ordds %>% filter(NotiDurCode == c("Expected", "Late"))
 logreglog2 <- glm(NotiDurCode ~ FaciCollapseCode + DxWeekdayRecode + NotiReqCode + Region, data=mulnomlog2ds, family = "binomial")
-logreglog2aug <- augment(logreglog2, type.predict = "response", type.residual = "response") %>%
+logreglog2aug <- augment(logreglog2, type.predict = "response") %>%
   mutate(PredCat = cut(.fitted, breaks = c(0, 0.49999,1),
                        labels = c("Expected", "Late")))
 logreglog2aug_accuracy <- confusionMatrix(logreglog2aug$PredCat, logreglog2aug$NotiDurCode, positive = "Late")

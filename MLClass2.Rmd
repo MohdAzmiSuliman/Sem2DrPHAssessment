@@ -54,7 +54,7 @@ burnDS0 <- read.delim("BURN1000.txt", header = TRUE, sep = "\t", dec = ".")
 
 burnDS1 <- burnDS0 %>%
   mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")), Gender = GENDER, Ethnic = RACEC, Inhale = INH_INJ, Flame = FLAME) %>%
-  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+  dplyr::select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
 
 burnDS2 <- burnDS0 %>%
   mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")),
@@ -62,7 +62,7 @@ burnDS2 <- burnDS0 %>%
          Ethnic = factor(RACEC, labels = c("Non-white", "White")),
          Inhale = factor(INH_INJ, labels = c("No", "Yes")),
          Flame = factor(FLAME, labels = c("No", "Yes"))) %>%
-  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+  dplyr::select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
 
 burnDS2
 ```
@@ -183,7 +183,7 @@ burnDS0_1 <- as.data.frame(scale(burnDS0, center = minscale, scale = maxscale - 
 burnDS1 <- burnDS0_1 %>%
   mutate(DcStat = factor(DEATH, labels = c("Alive", "Death")), Gender = GENDER,
          Ethnic = RACEC, Inhale = INH_INJ, Flame = FLAME) %>%
-  select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
+  dplyr::select(DcStat, AGE, Gender, Ethnic, TBSA, Inhale, Flame)
 ```
 
 The dataset split into training dataset and test dataset
@@ -268,7 +268,7 @@ newds2cat <- newds2 %>%
          Ethnic = factor(Ethnic, labels = "White"),
          Inhale = factor(Inhale, labels = "Yes"),
          Flame = factor(Flame, labels = c("No", "Yes"))) %>%
-  select(AGE, Gender, Ethnic, TBSA, Inhale, Flame) 
+  dplyr::select(AGE, Gender, Ethnic, TBSA, Inhale, Flame) 
 newds2cat
 ```
 
@@ -339,7 +339,7 @@ Note: Each node shows
 the model were tested using test dataset to predict the outcome, as shown below.
 
 ```{r}
-burnDS2_test_dtpredcomb %>% select(DcStat, Predicted, everything())
+burnDS2_test_dtpredcomb %>% dplyr::select(DcStat, Predicted, everything())
 ```
 
 
@@ -382,7 +382,7 @@ Using test dataset, the outcome of the model was shown below.
 
 
 ```{r}
-burnDS1_test_annpredcomb %>% select(DcStat, Predicted, everything())
+burnDS1_test_annpredcomb %>% dplyr::select(DcStat, Predicted, everything())
 ```
 
 ### Model Evaluation
